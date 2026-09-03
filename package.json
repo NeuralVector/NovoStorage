@@ -1,0 +1,26 @@
+{
+    "name": "novostorage",
+    "bugs": {
+        "url": "https://github.com/NeuralVector/NovoStorage/issues",
+        "email": "rashinkar.anish@gmail.com"
+    },
+    "license": "UNLICENSED",
+    "author": {
+        "name": "NeuralVector (GitHub)",
+        "url": "https://github.com/NeuralVector",
+        "email": "rashinkar.anish@gmail.com"
+    },
+    "type": "module",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/NeuralVector/NovoStorage.git"
+    },
+    "private": "true",
+    "devEngines": {
+        "packageManager": {
+            "name": "pnpm",
+            "version": ">=11",
+            "onFail": "warn"
+        }
+    }
+}
