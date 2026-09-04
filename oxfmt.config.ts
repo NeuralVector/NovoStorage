@@ -20,7 +20,7 @@ export default defineConfig({
 		'.next/**',
 		'.turbo/**',
 		'pnpm-lock.yaml',
-		'pnpm-workspace.yaml'
+		'pnpm-workspace.yaml',
 	],
 
 	insertFinalNewline: true,

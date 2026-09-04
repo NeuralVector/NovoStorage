@@ -16,6 +16,12 @@
 		"url": "git+https://github.com/NeuralVector/NovoStorage.git"
 	},
 	"type": "module",
+	"scripts": {
+		"dev": "tsx src/server.ts"
+	},
+	"dependencies": {
+		"fastify": "^5.12.1"
+	},
 	"devDependencies": {
 		"@types/node": "^26.4.1",
 		"oxfmt": "^0.66.0",
@@ -29,8 +35,5 @@
 			"version": ">=11",
 			"onFail": "warn"
 		}
-	},
-	"scripts": {
-		"dev": "tsx src/server.ts"
 	}
 }
