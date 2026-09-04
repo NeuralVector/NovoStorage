@@ -1,31 +1,32 @@
 {
-    "name": "novostorage",
-    "bugs": {
-        "url": "https://github.com/NeuralVector/NovoStorage/issues",
-        "email": "rashinkar.anish@gmail.com"
-    },
-    "license": "UNLICENSED",
-    "author": {
-        "name": "NeuralVector (GitHub)",
-        "url": "https://github.com/NeuralVector",
-        "email": "rashinkar.anish@gmail.com"
-    },
-    "type": "module",
-    "repository": {
-        "type": "git",
-        "url": "git+https://github.com/NeuralVector/NovoStorage.git"
-    },
-    "private": "true",
-    "devEngines": {
-        "packageManager": {
-            "name": "pnpm",
-            "version": ">=11",
-            "onFail": "warn"
-        }
-    },
-    "devDependencies": {
-        "@types/node": "^26.4.1",
-        "oxlint": "^1.81.0",
-        "typescript": "^7.0.2"
-    }
+	"name": "novostorage",
+	"private": "true",
+	"bugs": {
+		"url": "https://github.com/NeuralVector/NovoStorage/issues",
+		"email": "rashinkar.anish@gmail.com"
+	},
+	"license": "UNLICENSED",
+	"author": {
+		"name": "NeuralVector (GitHub)",
+		"email": "rashinkar.anish@gmail.com",
+		"url": "https://github.com/NeuralVector"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/NeuralVector/NovoStorage.git"
+	},
+	"type": "module",
+	"devDependencies": {
+		"@types/node": "^26.4.1",
+		"oxfmt": "^0.66.0",
+		"oxlint": "^1.81.0",
+		"typescript": "^7.0.2"
+	},
+	"devEngines": {
+		"packageManager": {
+			"name": "pnpm",
+			"version": ">=11",
+			"onFail": "warn"
+		}
+	}
 }
