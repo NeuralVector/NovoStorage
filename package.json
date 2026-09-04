@@ -22,5 +22,9 @@
             "version": ">=11",
             "onFail": "warn"
         }
+    },
+    "devDependencies": {
+        "@types/node": "^26.4.1",
+        "typescript": "^7.0.2"
     }
 }

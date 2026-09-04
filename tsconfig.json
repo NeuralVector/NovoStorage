@@ -1,0 +1,28 @@
+{
+	"include": ["src"],
+	"compilerOptions": {
+		"allowUnreachableCode": false,
+		"allowUnusedLabels": false,
+		"exactOptionalPropertyTypes": true,
+		"noFallthroughCasesInSwitch": true,
+		"noImplicitOverride": true,
+		"noImplicitReturns": true,
+		"noPropertyAccessFromIndexSignature": true,
+		"noUncheckedIndexedAccess": true,
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
+		"strict": true,
+		"allowArbitraryExtensions": false,
+		"allowUmdGlobalAccess": false,
+		"module": "nodenext",
+		"noResolve": false,
+		"noUncheckedSideEffectImports": true,
+		"resolveJsonModule": true,
+		"types": ["node"],
+		"noEmit": true,
+		"checkJs": false,
+		"verbatimModuleSyntax": true,
+		"experimentalDecorators": true,
+		"allowImportingTsExtensions": true
+	}
+}
