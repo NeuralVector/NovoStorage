@@ -21,6 +21,8 @@ export default defineConfig({
 		'.turbo/**',
 		'pnpm-lock.yaml',
 		'pnpm-workspace.yaml',
+		'lefthook.yaml',
+		'lefthook.yml'
 	],
 
 	insertFinalNewline: true,
@@ -28,15 +30,6 @@ export default defineConfig({
 	jsxSingleQuote: true,
 
 	objectWrap: 'preserve',
-
-	overrides: [
-		{
-			files: ['**/*.json', '**/*.jsonc', '**/*.json5'],
-			options: {
-				trailingComma: 'none',
-			},
-		},
-	],
 
 	printWidth: 100,
 
@@ -73,7 +66,7 @@ export default defineConfig({
 
 	tabWidth: 8,
 
-	trailingComma: 'all',
+	trailingComma: 'none',
 
 	useTabs: true,
 });
