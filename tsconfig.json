@@ -23,6 +23,7 @@
 		"checkJs": false,
 		"verbatimModuleSyntax": true,
 		"experimentalDecorators": true,
-		"allowImportingTsExtensions": true
+		"allowImportingTsExtensions": true,
+		"skipLibCheck": true
 	}
 }
