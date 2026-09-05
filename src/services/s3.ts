@@ -1,4 +1,4 @@
-import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { ListObjectsV2Command, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { Injectable } from '@nestjs/common';
 
 import config from '#config';
@@ -30,5 +30,16 @@ export class S3ObjectStorage implements ObjectStorage {
 		});
 
 		await this.client.send(command);
+	}
+
+	async list(userId: string): Promise<string[]> {
+		const result = await this.client.send(
+			new ListObjectsV2Command({
+				Bucket: config.get('storage.s3.bucket'),
+				Prefix: `${userId}/`
+			})
+		);
+
+		return result.Contents?.flatMap((object) => (object.Key ? [object.Key] : [])) ?? [];
 	}
 }
