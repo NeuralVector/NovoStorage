@@ -6,7 +6,7 @@ import {
 	PutObjectCommand,
 	S3Client
 } from '@aws-sdk/client-s3';
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 
 import config from '#config';
 import type { ObjectStorage } from '#services/object-storage.ts';
@@ -26,7 +26,7 @@ export const s3ClientProvider = {
 
 @Injectable()
 export class S3ObjectStorage implements ObjectStorage {
-	constructor(private readonly client: S3Client) {}
+	constructor(@Inject(S3Client) private readonly client: S3Client) {}
 
 	async upload(key: string, body: Buffer, contentType?: string): Promise<void> {
 		const command = new PutObjectCommand({
@@ -40,14 +40,29 @@ export class S3ObjectStorage implements ObjectStorage {
 	}
 
 	async list(userId: string): Promise<string[]> {
-		const result = await this.client.send(
-			new ListObjectsV2Command({
-				Bucket: config.get('storage.s3.bucket'),
-				Prefix: `${userId}/`
-			})
-		);
+		const keys: string[] = [];
+		let continuationToken: string | undefined;
 
-		return result.Contents?.flatMap((object) => (object.Key ? [object.Key] : [])) ?? [];
+		do {
+			const result = await this.client.send(
+				new ListObjectsV2Command({
+					Bucket: config.get('storage.s3.bucket'),
+					Prefix: `${userId}/`,
+					...(continuationToken
+						? { ContinuationToken: continuationToken }
+						: {})
+				})
+			);
+
+			keys.push(
+				...(result.Contents?.flatMap((object) =>
+					object.Key ? [object.Key] : []
+				) ?? [])
+			);
+			continuationToken = result.NextContinuationToken;
+		} while (continuationToken);
+
+		return keys;
 	}
 
 	async download(key: string): Promise<Readable> {
