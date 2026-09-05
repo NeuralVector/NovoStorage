@@ -4,6 +4,9 @@ document.querySelector('#sign-out')?.addEventListener('click', () => {
 	signOut();
 });
 
+const fileInput = document.querySelector('#file-input');
+const uploadButton = document.querySelector('#upload-file');
+
 interface StorageItem {
 	name: string;
 	path: string;
@@ -49,5 +52,53 @@ async function loadStorage(): Promise<void> {
 		}
 	}
 }
+
+uploadButton?.addEventListener('click', () => {
+	(fileInput as HTMLInputElement | null)?.click();
+});
+
+fileInput?.addEventListener('change', async () => {
+	const input = fileInput as HTMLInputElement;
+	const file = input.files?.[0];
+	if (!file) {
+		return;
+	}
+
+	if (status) {
+		status.textContent = `Uploading ${file.name}...`;
+	}
+	if (uploadButton instanceof HTMLButtonElement) {
+		uploadButton.disabled = true;
+	}
+
+	try {
+		const formData = new FormData();
+		formData.append('file', file, file.name);
+		const response = await fetch('/api/files', {
+			method: 'POST',
+			body: formData
+		});
+
+		if (response.status === 401) {
+			window.location.assign('/login');
+			return;
+		}
+		if (!response.ok) {
+			throw new Error(`Unable to upload file (${response.status})`);
+		}
+
+		input.value = '';
+		await loadStorage();
+	} catch (error) {
+		if (status) {
+			status.textContent =
+				error instanceof Error ? error.message : 'Unable to upload file.';
+		}
+	} finally {
+		if (uploadButton instanceof HTMLButtonElement) {
+			uploadButton.disabled = false;
+		}
+	}
+});
 
 void loadStorage();

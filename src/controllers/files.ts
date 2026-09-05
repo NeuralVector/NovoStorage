@@ -1,4 +1,4 @@
-import { Controller, Get, Inject, Req } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Inject, Post, Req } from '@nestjs/common';
 import type { FastifyRequest } from 'fastify';
 
 import { AUTH_OPERATIONS, type AuthOperations } from '#services/auth.ts';
@@ -46,5 +46,25 @@ export class FilesController {
 		return [...items.values()].sort((left, right) =>
 			left.path.localeCompare(right.path)
 		);
+	}
+
+	@Post('files')
+	async uploadFile(@Req() request: FastifyRequest): Promise<{ key: string }> {
+		const user = this.auth.requireUser(request);
+		const file = await request.file();
+
+		if (!file) {
+			throw new BadRequestException('A file is required.');
+		}
+
+		const fileName = file.filename.replaceAll('\\', '/').split('/').pop();
+		if (!fileName) {
+			throw new BadRequestException('The uploaded file must have a name.');
+		}
+
+		const key = `${user.userId}/${fileName}`;
+		await this.storage.upload(key, await file.toBuffer(), file.mimetype);
+
+		return { key };
 	}
 }

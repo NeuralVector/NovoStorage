@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 
 import { clerkPlugin } from '@clerk/fastify';
+import fastifyMultipart from '@fastify/multipart';
 import fastifyStatic from '@fastify/static';
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter } from '@nestjs/platform-fastify';
@@ -37,6 +38,7 @@ export async function createApp() {
 	});
 
 	await fastify.register(clerkPlugin);
+	await fastify.register(fastifyMultipart);
 
 	return app;
 }
