@@ -1,4 +1,7 @@
 import 'reflect-metadata';
+import { existsSync } from 'node:fs';
+import path from 'node:path';
+
 import { clerkPlugin } from '@clerk/fastify';
 import fastifyStatic from '@fastify/static';
 import { NestFactory } from '@nestjs/core';
@@ -10,19 +13,27 @@ export async function createApp() {
 	const app = await NestFactory.create(
 		AppModule,
 		new FastifyAdapter({
-			logger: true
-		}),
-		{
-			logger: false,
-			abortOnError: false
-		}
+			logger: {
+				transport: {
+					target: 'pino-pretty',
+					options: {
+						colorize: true,
+						translateTime: 'SYS:standard',
+						ignore: 'pid,hostname'
+					}
+				}
+			}
+		})
 	);
 
 	const fastify = app.getHttpAdapter().getInstance();
+	const builtPublicDirectory = path.join(import.meta.dirname, 'public');
+	const sourcePublicDirectory = path.join(import.meta.dirname, '../public');
 
 	await fastify.register(fastifyStatic, {
-		root: new URL('../public/', import.meta.url),
-		wildcard: false
+		root: existsSync(builtPublicDirectory)
+			? builtPublicDirectory
+			: sourcePublicDirectory
 	});
 
 	await fastify.register(clerkPlugin);

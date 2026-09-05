@@ -1,4 +1,8 @@
 allowBuilds:
   '@nestjs/core': true
+  browser-tabs-lock: true
+  bufferutil: true
+  core-js: true
   esbuild: true
   lefthook: true
+  utf-8-validate: true
