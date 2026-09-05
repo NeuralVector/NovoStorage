@@ -1,6 +1,8 @@
-import { S3Client } from '@aws-sdk/client-s3';
+import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { Injectable } from '@nestjs/common';
 
 import config from '#config';
+import type { ObjectStorage } from '#services/object-storage.ts';
 
 export const s3ClientProvider = {
 	provide: S3Client,
@@ -14,3 +16,19 @@ export const s3ClientProvider = {
 			}
 		})
 };
+
+@Injectable()
+export class S3ObjectStorage implements ObjectStorage {
+	constructor(private readonly client: S3Client) {}
+
+	async upload(key: string, body: Buffer, contentType?: string): Promise<void> {
+		const command = new PutObjectCommand({
+			Bucket: config.get('storage.s3.bucket'),
+			Key: key,
+			Body: body,
+			...(contentType ? { ContentType: contentType } : {})
+		});
+
+		await this.client.send(command);
+	}
+}

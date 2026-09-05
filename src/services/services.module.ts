@@ -1,7 +1,8 @@
 import { Module } from '@nestjs/common';
 
 import { AUTH_OPERATIONS, ClerkAuthOperations } from '#services/auth.ts';
-import { s3ClientProvider } from '#services/s3.ts';
+import { OBJECT_STORAGE } from '#services/object-storage.ts';
+import { S3ObjectStorage, s3ClientProvider } from '#services/s3.ts';
 
 @Module({
 	providers: [
@@ -9,8 +10,12 @@ import { s3ClientProvider } from '#services/s3.ts';
 			provide: AUTH_OPERATIONS,
 			useClass: ClerkAuthOperations
 		},
-		s3ClientProvider
+		s3ClientProvider,
+		{
+			provide: OBJECT_STORAGE,
+			useClass: S3ObjectStorage
+		}
 	],
-	exports: [AUTH_OPERATIONS, s3ClientProvider]
+	exports: [AUTH_OPERATIONS, OBJECT_STORAGE]
 })
 export class ServicesModule {}

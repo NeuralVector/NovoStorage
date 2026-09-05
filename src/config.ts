@@ -64,6 +64,16 @@ const config = convict({
 				default: '',
 				env: 'S3_ENDPOINT'
 			},
+			bucket: {
+				doc: 'S3 bucket name',
+				format: (value: unknown) => {
+					if (typeof value !== 'string' || value.trim() === '') {
+						throw new Error('S3_BUCKET is required');
+					}
+				},
+				default: '',
+				env: 'S3_BUCKET'
+			},
 			accessKeyId: {
 				doc: 'S3 access key ID',
 				format: (value: unknown) => {
