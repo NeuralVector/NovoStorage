@@ -41,8 +41,22 @@ async function loadStorage(): Promise<void> {
 		storageList.replaceChildren();
 		for (const item of items) {
 			const listItem = document.createElement('li');
-			listItem.textContent = `${item.type === 'directory' ? '📁' : '📄'} ${item.name}`;
+			const label = document.createElement('span');
+			label.textContent = `${item.type === 'directory' ? '📁' : '📄'} ${item.name}`;
+			listItem.append(label);
 			listItem.title = item.path;
+
+			if (item.type === 'file') {
+				const downloadButton = document.createElement('button');
+				downloadButton.type = 'button';
+				downloadButton.textContent = 'Download';
+				downloadButton.addEventListener('click', () => {
+					const query = new URLSearchParams({ path: item.path });
+					window.location.assign(`/api/files/download?${query}`);
+				});
+				listItem.append(' ', downloadButton);
+			}
+
 			storageList.append(listItem);
 		}
 	} catch (error) {

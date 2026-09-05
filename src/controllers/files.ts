@@ -1,5 +1,15 @@
-import { BadRequestException, Controller, Get, Inject, Post, Req } from '@nestjs/common';
+import {
+	BadRequestException,
+	Controller,
+	Get,
+	Inject,
+	Post,
+	Query,
+	Req,
+	Res
+} from '@nestjs/common';
 import type { FastifyRequest } from 'fastify';
+import type { FastifyReply } from 'fastify';
 
 import { AUTH_OPERATIONS, type AuthOperations } from '#services/auth.ts';
 import { OBJECT_STORAGE, type ObjectStorage } from '#services/object-storage.ts';
@@ -46,6 +56,35 @@ export class FilesController {
 		return [...items.values()].sort((left, right) =>
 			left.path.localeCompare(right.path)
 		);
+	}
+
+	@Get('files/download')
+	async downloadFile(
+		@Query('path') filePath: string,
+		@Req() request: FastifyRequest,
+		@Res() reply: FastifyReply
+	): Promise<void> {
+		const user = this.auth.requireUser(request);
+		const normalizedPath = filePath?.replaceAll('\\', '/');
+
+		if (
+			!normalizedPath ||
+			normalizedPath.startsWith('/') ||
+			normalizedPath.split('/').some((part) => part === '..')
+		) {
+			throw new BadRequestException('A valid file path is required.');
+		}
+
+		const key = `${user.userId}/${normalizedPath}`;
+		const fileName = normalizedPath.split('/').pop() ?? 'download';
+		const stream = await this.storage.download(key);
+
+		reply.header('Content-Type', 'application/octet-stream');
+		reply.header(
+			'Content-Disposition',
+			`attachment; filename="${encodeURIComponent(fileName)}"`
+		);
+		reply.send(stream);
 	}
 
 	@Post('files')
