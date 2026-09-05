@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<meta
+			name="description"
+			content="NovoStorage is a secure, fast, and reliable cloud storage platform for storing, syncing, sharing, and backing up your files across devices."
+		/>
+		<meta
+			name="keywords"
+			content="NovoStorage, cloud storage, file storage, online storage, cloud drive, file sharing, file sync, backup, cloud backup, secure storage, encrypted storage, object storage, document storage, media storage, file hosting, storage platform, online files, cloud files, cloud services, web storage, data storage, storage solution"
+		/>
+		<meta name="author" content="NovoStorage" />
+		<meta name="robots" content="index, follow, max-image-preview:large" />
+
+		<link rel="icon" href="/assets/favicon.svg" />
+		<title>NovoStorage - A secure Cloud Data Storage platform</title>
+	</head>
+
+	<body>
+		<button onclick="document.getElementById('loginDialog').showModal()">Login</button
+		><br />
+		<button onclick="document.getElementById('signupDialog').showModal()">
+			Sign Up</button
+		><br />
+
+		<dialog id="loginDialog">
+			<h2>Login</h2>
+
+			<form method="post" action="/login">
+				<label>
+					Username:
+					<input type="text" name="username" required />
+				</label>
+				<br />
+
+				<label>
+					Password:
+					<input type="password" name="password" required />
+				</label>
+				<br />
+
+				<button type="submit">Login</button>
+				<button type="button" onclick="this.closest('dialog').close()">
+					Close
+				</button>
+			</form>
+		</dialog>
+
+		<dialog id="signupDialog">
+			<h2>Sign Up</h2>
+
+			<form method="post" action="/signup">
+				<label>
+					Username:
+					<input type="text" name="username" required />
+				</label>
+				<br />
+
+				<label>
+					Email:
+					<input type="email" name="email" required />
+				</label>
+				<br />
+
+				<label>
+					Password:
+					<input type="password" name="password" required />
+				</label>
+				<br />
+
+				<button type="submit">Sign Up</button>
+				<button type="button" onclick="this.closest('dialog').close()">
+					Close
+				</button>
+			</form>
+		</dialog>
+	</body>
+</html>
