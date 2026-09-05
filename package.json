@@ -17,9 +17,11 @@
 	},
 	"type": "module",
 	"scripts": {
-		"dev": "tsx watch src/server.ts",
-		"build": "rm -rf dist && rolldown -c",
-		"start": "node dist/server.js"
+		"dev": "node --env-file=.env --import=tsx/esm --watch src/server.ts",
+		"dev:bun": "bun --env-file=.env --watch src/server.ts",
+		"build": "rm -rf dist && node --env-file=.env --import=tsx/esm node_modules/rolldown/dist/cli.mjs -c && cp -r public/* dist/public/",
+		"start": "node --env-file=.env dist/server.js",
+		"start:bun": "bun --env-file=.env dist/server.js"
 	},
 	"dependencies": {
 		"@nestjs/common": "^12.0.1",
