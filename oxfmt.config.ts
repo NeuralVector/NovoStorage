@@ -50,23 +50,23 @@ export default defineConfig({
 			['internal', 'subpath'],
 			['parent', 'sibling', 'index'],
 			'style',
-			'unknown',
+			'unknown'
 		],
 		ignoreCase: true,
 		internalPattern: ['~/', '@/', '#'],
 		newlinesBetween: true,
 		order: 'asc',
 		partitionByComment: true,
-		sortSideEffects: false,
+		sortSideEffects: false
 	},
 
 	sortPackageJson: {
-		sortScripts: false,
+		sortScripts: false
 	},
 
 	tabWidth: 8,
 
 	trailingComma: 'none',
 
-	useTabs: true,
+	useTabs: true
 });

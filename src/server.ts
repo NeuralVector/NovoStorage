@@ -1,5 +1,12 @@
-import app from './app.ts';
-import config from './config.ts';
 import 'reflect-metadata';
+import { createApp } from '#app';
+import config from '#config';
 
-await app.listen(config.get('server.port'), config.get('server.host'));
+try {
+	const app = await createApp();
+	await app.listen(config.get('server.port'), config.get('server.host'));
+} catch (error) {
+	const message = error instanceof Error ? (error.stack ?? error.message) : String(error);
+	process.stderr.write(`Failed to start the application:\n${message}\n`);
+	process.exitCode = 1;
+}

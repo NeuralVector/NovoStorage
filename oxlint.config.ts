@@ -8,16 +8,16 @@ export default defineConfig({
 		perf: 'warn',
 		style: 'off',
 		restriction: 'off',
-		nursery: 'off',
+		nursery: 'off'
 	},
 
 	env: {
 		node: true,
-		builtin: true,
+		builtin: true
 	},
 
 	globals: {
-		Bun: 'readonly',
+		Bun: 'readonly'
 	},
 
 	ignorePatterns: ['dist/**', 'coverage/**'],
@@ -30,17 +30,17 @@ export default defineConfig({
 		reportUnusedDisableDirectives: 'error',
 		respectEslintDisableDirectives: true,
 		typeAware: false,
-		typeCheck: false,
+		typeCheck: false
 	},
 
 	overrides: [
 		{
 			files: ['**/*.test.ts', '**/*.test.tsx', '**/*.spec.ts', '**/*.spec.tsx'],
 			env: {
-				vitest: true,
-			},
-		},
+				vitest: true
+			}
+		}
 	],
 
-	rules: {},
+	rules: {}
 });
