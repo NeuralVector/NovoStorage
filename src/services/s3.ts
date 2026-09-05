@@ -1,4 +1,11 @@
-import { ListObjectsV2Command, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { Readable } from 'node:stream';
+
+import {
+	GetObjectCommand,
+	ListObjectsV2Command,
+	PutObjectCommand,
+	S3Client
+} from '@aws-sdk/client-s3';
 import { Injectable } from '@nestjs/common';
 
 import config from '#config';
@@ -41,5 +48,20 @@ export class S3ObjectStorage implements ObjectStorage {
 		);
 
 		return result.Contents?.flatMap((object) => (object.Key ? [object.Key] : [])) ?? [];
+	}
+
+	async download(key: string): Promise<Readable> {
+		const result = await this.client.send(
+			new GetObjectCommand({
+				Bucket: config.get('storage.s3.bucket'),
+				Key: key
+			})
+		);
+
+		if (!result.Body) {
+			throw new Error(`S3 object has no body: ${key}`);
+		}
+
+		return Readable.from(result.Body as AsyncIterable<Uint8Array>);
 	}
 }
