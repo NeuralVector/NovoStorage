@@ -1,5 +1,7 @@
 import app from './app.ts';
+import config from './config.ts';
 
-app.listen({ port: 3000 }, () => {
-	console.log('Listening on port 3000');
+await app.listen({
+	host: config.get('server.host'),
+	port: config.get('server.port')
 });

@@ -22,9 +22,11 @@
 		"start": "node dist/server.js"
 	},
 	"dependencies": {
+		"convict": "^6.2.5",
 		"fastify": "^5.12.1"
 	},
 	"devDependencies": {
+		"@types/convict": "^6.1.6",
 		"@types/node": "^26.4.1",
 		"lefthook": "^2.1.12",
 		"oxfmt": "^0.66.0",
