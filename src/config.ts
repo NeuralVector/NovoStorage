@@ -44,6 +44,47 @@ const config = convict({
 			default: 'http://localhost',
 			env: 'WEBSITE_URL'
 		}
+	},
+
+	storage: {
+		s3: {
+			region: {
+				doc: 'AWS S3 region',
+				format: String,
+				default: 'ap-south-1',
+				env: 'S3_REGION'
+			},
+			endpoint: {
+				doc: 'S3 endpoint',
+				format: (value: unknown) => {
+					if (typeof value !== 'string' || value.trim() === '') {
+						throw new Error('S3_ENDPOINT is required');
+					}
+				},
+				default: '',
+				env: 'S3_ENDPOINT'
+			},
+			accessKeyId: {
+				doc: 'S3 access key ID',
+				format: (value: unknown) => {
+					if (typeof value !== 'string' || value.trim() === '') {
+						throw new Error('S3_ACCESS_KEY_ID is required');
+					}
+				},
+				default: '',
+				env: 'S3_ACCESS_KEY_ID'
+			},
+			secretAccessKey: {
+				doc: 'S3 secret access key',
+				format: (value: unknown) => {
+					if (typeof value !== 'string' || value.trim() === '') {
+						throw new Error('S3_SECRET_ACCESS_KEY is required');
+					}
+				},
+				default: '',
+				env: 'S3_SECRET_ACCESS_KEY'
+			}
+		}
 	}
 });
 

@@ -1,8 +1,8 @@
 import { Controller, Get, Inject, Req, Res } from '@nestjs/common';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
-import { AUTH_OPERATIONS, type AuthOperations } from '#auth/auth.ts';
 import config from '#config';
+import { AUTH_OPERATIONS, type AuthOperations } from '#services/auth.ts';
 import { PAGE_RENDERER, type PageRenderer } from '#utils/page-renderer.ts';
 
 @Controller()

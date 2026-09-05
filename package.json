@@ -19,9 +19,9 @@
 	"imports": {
 		"#app": "./src/app.ts",
 		"#app-module": "./src/app.module.ts",
-		"#auth/*": "./src/auth/*",
 		"#config": "./src/config.ts",
 		"#controllers/*": "./src/controllers/*",
+		"#services/*": "./src/services/*",
 		"#utils/*": "./src/utils/*"
 	},
 	"scripts": {
@@ -32,6 +32,7 @@
 		"start:bun": "bun --env-file=.env dist/server.js"
 	},
 	"dependencies": {
+		"@aws-sdk/client-s3": "^3.1126.0",
 		"@clerk/clerk-js": "^6.31.0",
 		"@clerk/fastify": "^3.1.76",
 		"@fastify/static": "^10.1.3",
