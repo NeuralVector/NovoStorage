@@ -1,7 +1,5 @@
 import app from './app.ts';
 import config from './config.ts';
+import 'reflect-metadata';
 
-await app.listen({
-	host: config.get('server.host'),
-	port: config.get('server.port')
-});
+await app.listen(config.get('server.port'), config.get('server.host'));
