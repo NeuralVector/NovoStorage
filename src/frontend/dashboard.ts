@@ -120,6 +120,7 @@ function resetPreview(): void {
 	previewRequest += 1;
 	if (previewUrl) URL.revokeObjectURL(previewUrl);
 	previewUrl = null;
+	if (preview) preview.hidden = true;
 	preview?.classList.remove('has-image');
 	if (previewType) {
 		previewType.hidden = false;
@@ -137,6 +138,7 @@ async function loadImagePreview(item: StorageItem): Promise<void> {
 	if (item.type !== 'file' || !mimeType || !previewImage) return;
 
 	const request = previewRequest;
+	if (preview) preview.hidden = false;
 	if (previewType) {
 		previewType.hidden = false;
 		previewType.textContent = 'Loading preview…';
