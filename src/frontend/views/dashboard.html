@@ -1,18 +1,289 @@
-<html>
+<!doctype html>
+<html lang="en">
 	<head>
-		<script type="module" src="/assets/dashboard.js"></script>
-		<style>
-			li {
-				margin: 0.4rem 0;
-			}
-		</style>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>My storage · NovoStorage</title>
+		<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
+		<link rel="stylesheet" href="/assets/css/components.css" />
+		<link rel="stylesheet" href="/assets/css/dashboard.css" />
 	</head>
 	<body>
-		<h1>Dashboard</h1>
-		<button id="sign-out" type="button">Sign out</button>
-		<input id="file-input" type="file" hidden />
-		<button id="upload-file" type="button">Upload file</button>
-		<p id="storage-status">Loading files...</p>
-		<ul id="storage-list"></ul>
+		<div class="app-shell">
+			<aside class="sidebar" aria-label="Storage navigation">
+				<div class="brand">
+					<a href="/" class="logo">
+						<div class="logo-box">N</div>
+						<div>
+							<span class="novo">Novo</span
+							><span class="storage">Storage</span>
+						</div>
+					</a>
+				</div>
+
+				<div class="create-wrap">
+					<button
+						class="upload"
+						type="button"
+						data-action="create-menu"
+						aria-expanded="false"
+					>
+						<b>＋</b> New
+					</button>
+					<div class="create-menu popover" hidden>
+						<button type="button" data-action="open-upload">
+							Upload files
+						</button>
+						<button type="button" data-action="open-folder">
+							New folder
+						</button>
+					</div>
+				</div>
+
+				<nav>
+					<button
+						class="nav-item active"
+						type="button"
+						data-view="storage"
+					>
+						▣ <span>My storage</span>
+					</button>
+				</nav>
+
+				<div class="account">
+					<span
+						><strong id="account-name">My account</strong
+						><small>Personal workspace</small></span
+					>
+					<button
+						class="sign-out"
+						type="button"
+						data-action="sign-out"
+					>
+						Sign out
+					</button>
+				</div>
+			</aside>
+
+			<main>
+				<header>
+					<div
+						id="breadcrumb"
+						class="crumb"
+						aria-label="Current folder"
+					></div>
+				</header>
+				<section class="heading">
+					<div>
+						<p>WORKSPACE</p>
+						<h1>My storage</h1>
+						<span
+							>Upload files to start organizing your
+							workspace.</span
+						>
+					</div>
+					<div class="toolbar">
+						<label class="search"
+							><span>⌕</span
+							><input
+								id="file-filter"
+								type="search"
+								placeholder="Search files"
+								aria-label="Search files"
+						/></label>
+						<button
+							class="view selected"
+							type="button"
+							data-view-mode="list"
+							aria-label="List view"
+						>
+							☷
+						</button>
+						<button
+							class="view"
+							type="button"
+							data-view-mode="grid"
+							aria-label="Grid view"
+						>
+							▦
+						</button>
+					</div>
+				</section>
+
+				<section class="content-area" aria-labelledby="files-heading">
+					<div class="section-title">
+						<h2 id="files-heading">Files</h2>
+						<span id="item-count">Loading...</span>
+					</div>
+					<div
+						class="file-table"
+						role="table"
+						aria-label="Storage files"
+					>
+						<div class="table-head" role="row">
+							<span>Name</span><span>Owner</span
+							><span>Last modified</span><span>Size</span
+							><span></span>
+						</div>
+						<div id="file-rows" role="rowgroup"></div>
+					</div>
+				</section>
+				<footer class="status-bar">
+					<button type="button" data-action="refresh">
+						↻ Refresh
+					</button>
+				</footer>
+			</main>
+
+			<aside
+				id="details-panel"
+				class="details"
+				aria-label="Selected item details"
+				hidden
+			>
+				<div
+					class="details-resizer"
+					aria-label="Resize details panel"
+					role="separator"
+				></div>
+				<div class="details-head">
+					Details
+					<button
+						type="button"
+						data-action="close-details"
+						aria-label="Close details"
+					>
+						×
+					</button>
+				</div>
+				<div id="details-empty" class="details-empty">
+					<div>⌁</div>
+					<h2>No item selected</h2>
+					<p>Select a file to view information and actions.</p>
+				</div>
+				<div id="details-content" hidden>
+					<div class="preview">
+						<b id="preview-type">FILE</b><i></i><i></i><i></i>
+					</div>
+					<section>
+						<h2 id="detail-name">—</h2>
+						<p id="detail-meta">—</p>
+					</section>
+					<div class="menu">
+						<button
+							class="download"
+							type="button"
+							data-action="download"
+						>
+							⇩ <strong>Download</strong>
+						</button>
+					</div>
+					<dl>
+						<div>
+							<dt>Location</dt>
+							<dd id="detail-location">My storage</dd>
+						</div>
+						<div>
+							<dt>Owner</dt>
+							<dd id="detail-owner">You</dd>
+						</div>
+						<div>
+							<dt>Modified</dt>
+							<dd id="detail-modified">—</dd>
+						</div>
+					</dl>
+				</div>
+			</aside>
+		</div>
+
+		<div id="modal-backdrop" class="modal-backdrop" hidden>
+			<section
+				id="upload-modal"
+				class="modal"
+				hidden
+				aria-modal="true"
+				role="dialog"
+				aria-labelledby="upload-title"
+			>
+				<button
+					class="modal-close"
+					type="button"
+					data-action="close-modal"
+					aria-label="Close"
+				>
+					×
+				</button>
+				<p class="modal-kicker">UPLOAD</p>
+				<h2 id="upload-title">Add files to NovoStorage</h2>
+				<p>Choose files below to upload them to your storage.</p>
+				<label class="drop-zone" for="file-input"
+					><b>↑</b><strong>Choose files</strong
+					><span>or drop them here</span></label
+				>
+				<input id="file-input" type="file" multiple hidden />
+				<div id="pending-files" class="pending-files">
+					No files selected
+				</div>
+				<div class="modal-actions">
+					<button
+						class="secondary"
+						type="button"
+						data-action="close-modal"
+					>
+						Cancel</button
+					><button
+						class="primary"
+						type="button"
+						data-action="queue-upload"
+					>
+						Upload
+					</button>
+				</div>
+			</section>
+			<section
+				id="folder-modal"
+				class="modal"
+				hidden
+				aria-modal="true"
+				role="dialog"
+				aria-labelledby="folder-title"
+			>
+				<button
+					class="modal-close"
+					type="button"
+					data-action="close-modal"
+					aria-label="Close"
+				>
+					×
+				</button>
+				<p class="modal-kicker">NEW FOLDER</p>
+				<h2 id="folder-title">Create a folder</h2>
+				<p>Give your folder a name.</p>
+				<label class="field-label" for="folder-name">Folder name</label
+				><input
+					class="field"
+					id="folder-name"
+					type="text"
+					placeholder="e.g. Project resources"
+				/>
+				<div class="modal-actions">
+					<button
+						class="secondary"
+						type="button"
+						data-action="close-modal"
+					>
+						Cancel</button
+					><button
+						class="primary"
+						type="button"
+						data-action="create-folder"
+					>
+						Create folder
+					</button>
+				</div>
+			</section>
+		</div>
+		<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+		<script type="module" src="/assets/dashboard.js"></script>
 	</body>
 </html>

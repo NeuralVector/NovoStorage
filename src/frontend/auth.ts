@@ -11,3 +11,14 @@ export function signOut(): Promise<void> {
 		redirectUrl: '/'
 	});
 }
+
+export function getCurrentUserName(): string {
+	const user = clerk.user;
+	return (
+		user?.fullName ??
+		([user?.firstName, user?.lastName].filter(Boolean).join(' ') ||
+			user?.username ||
+			user?.primaryEmailAddress?.emailAddress ||
+			'My account')
+	);
+}

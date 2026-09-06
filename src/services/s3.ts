@@ -9,7 +9,7 @@ import {
 import { Inject, Injectable } from '@nestjs/common';
 
 import config from '#config';
-import type { ObjectStorage } from '#services/object-storage.ts';
+import type { ObjectStorage, StorageObject } from '#services/object-storage.ts';
 
 export const s3ClientProvider = {
 	provide: S3Client,
@@ -39,8 +39,18 @@ export class S3ObjectStorage implements ObjectStorage {
 		await this.client.send(command);
 	}
 
-	async list(userId: string): Promise<string[]> {
-		const keys: string[] = [];
+	async createDirectory(key: string): Promise<void> {
+		await this.client.send(
+			new PutObjectCommand({
+				Bucket: config.get('storage.s3.bucket'),
+				Key: key,
+				Body: Buffer.alloc(0)
+			})
+		);
+	}
+
+	async list(userId: string): Promise<StorageObject[]> {
+		const objects: StorageObject[] = [];
 		let continuationToken: string | undefined;
 
 		do {
@@ -54,15 +64,17 @@ export class S3ObjectStorage implements ObjectStorage {
 				})
 			);
 
-			keys.push(
+			objects.push(
 				...(result.Contents?.flatMap((object) =>
-					object.Key ? [object.Key] : []
+					object.Key
+						? [{ key: object.Key, size: object.Size ?? 0 }]
+						: []
 				) ?? [])
 			);
 			continuationToken = result.NextContinuationToken;
 		} while (continuationToken);
 
-		return keys;
+		return objects;
 	}
 
 	async download(key: string): Promise<Readable> {

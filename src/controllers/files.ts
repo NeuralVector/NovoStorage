@@ -1,5 +1,6 @@
 import {
 	BadRequestException,
+	Body,
 	Controller,
 	Get,
 	Inject,
@@ -18,6 +19,25 @@ interface StorageItem {
 	name: string;
 	path: string;
 	type: 'file' | 'directory';
+	size: number;
+}
+
+interface CreateDirectoryBody {
+	name?: string;
+	parent?: string;
+}
+
+function validateRelativePath(value: string | undefined): string {
+	const path =
+		value
+			?.trim()
+			.replaceAll('\\', '/')
+			.replace(/^\/+|\/+$/g, '') ?? '';
+	if (!path) return '';
+	if (path.split('/').some((part) => !part || part === '.' || part === '..')) {
+		throw new BadRequestException('A valid directory path is required.');
+	}
+	return path;
 }
 
 @Controller('api')
@@ -30,11 +50,12 @@ export class FilesController {
 	@Get('files')
 	async listFiles(@Req() request: FastifyRequest): Promise<StorageItem[]> {
 		const user = this.auth.requireUser(request);
-		const keys = await this.storage.list(user.userId);
+		const objects = await this.storage.list(user.userId);
 		const items = new Map<string, StorageItem>();
 		const userPrefix = `${user.userId}/`;
 
-		for (const key of keys) {
+		for (const object of objects) {
+			const key = object.key;
 			const relativeKey = key.startsWith(userPrefix)
 				? key.slice(userPrefix.length)
 				: key;
@@ -48,7 +69,8 @@ export class FilesController {
 				items.set(path, {
 					name: parts[index]!,
 					path,
-					type: isDirectory ? 'directory' : 'file'
+					type: isDirectory ? 'directory' : 'file',
+					size: isDirectory ? 0 : object.size
 				});
 			}
 		}
@@ -88,7 +110,10 @@ export class FilesController {
 	}
 
 	@Post('files')
-	async uploadFile(@Req() request: FastifyRequest): Promise<{ key: string }> {
+	async uploadFile(
+		@Query('path') directoryPath: string,
+		@Req() request: FastifyRequest
+	): Promise<{ key: string }> {
 		const user = this.auth.requireUser(request);
 		const file = await request.file();
 
@@ -101,8 +126,34 @@ export class FilesController {
 			throw new BadRequestException('The uploaded file must have a name.');
 		}
 
-		const key = `${user.userId}/${fileName}`;
+		const path = validateRelativePath(directoryPath);
+		const key = `${user.userId}/${path ? `${path}/` : ''}${fileName}`;
 		await this.storage.upload(key, await file.toBuffer(), file.mimetype);
+
+		return { key };
+	}
+
+	@Post('directories')
+	async createDirectory(
+		@Body() body: CreateDirectoryBody,
+		@Req() request: FastifyRequest
+	): Promise<{ key: string }> {
+		const user = this.auth.requireUser(request);
+		const name = body?.name?.trim();
+		const parent = validateRelativePath(body?.parent);
+
+		if (
+			!name ||
+			name === '.' ||
+			name === '..' ||
+			name.includes('/') ||
+			name.includes('\\')
+		) {
+			throw new BadRequestException('A valid directory name is required.');
+		}
+
+		const key = `${user.userId}/${parent ? `${parent}/` : ''}${name}/`;
+		await this.storage.createDirectory(key);
 
 		return { key };
 	}
