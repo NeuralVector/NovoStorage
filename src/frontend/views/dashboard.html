@@ -260,9 +260,12 @@
 					><span>or drop them here</span></label
 				>
 				<input id="file-input" type="file" multiple hidden />
-				<div id="pending-files" class="pending-files">
-					No files selected
-				</div>
+				<div
+					id="pending-files"
+					class="pending-files"
+					aria-live="polite"
+					aria-label="Files selected for upload"
+				></div>
 				<div class="modal-actions">
 					<button
 						class="secondary"

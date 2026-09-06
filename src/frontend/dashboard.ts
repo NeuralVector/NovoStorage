@@ -333,13 +333,55 @@ function openModal(modal: HTMLElement | null): void {
 	modal.hidden = false;
 }
 
+function renderSelectedFiles(files: FileList | null): void {
+	if (!pendingFiles) return;
+	pendingFiles.replaceChildren();
+
+	if (!files || files.length === 0) {
+		const empty = document.createElement('p');
+		empty.className = 'pending-files-empty';
+		empty.textContent = 'No files selected';
+		pendingFiles.append(empty);
+		return;
+	}
+
+	const list = document.createElement('ul');
+	list.className = 'pending-file-list';
+	for (const file of files) {
+		const item = document.createElement('li');
+		item.className = 'pending-file';
+
+		const name = document.createElement('span');
+		name.className = 'pending-file-name';
+		name.textContent = file.name;
+		name.title = file.name;
+
+		const size = document.createElement('span');
+		size.className = 'pending-file-size';
+		size.textContent = formatFileSize(file.size);
+
+		item.append(name, size);
+		list.append(item);
+	}
+	pendingFiles.append(list);
+}
+
+function clearSelectedFiles(): void {
+	if (fileInput) fileInput.value = '';
+	renderSelectedFiles(null);
+}
+
+renderSelectedFiles(null);
+
 function closeModal(): void {
 	if (!modalBackdrop) return;
+	const uploadWasOpen = Boolean(uploadModal && !uploadModal.hidden);
 	modalBackdrop.hidden = true;
 	if (uploadModal) uploadModal.hidden = true;
 	if (folderModal) folderModal.hidden = true;
 	if (previewModal) previewModal.hidden = true;
 	if (previewModalImage) previewModalImage.removeAttribute('src');
+	if (uploadWasOpen) clearSelectedFiles();
 }
 
 function openImagePreview(): void {
@@ -372,8 +414,7 @@ async function uploadFiles(): Promise<void> {
 		if (!response.ok) throw new Error(`Unable to upload ${file.name}`);
 	}
 
-	fileInput.value = '';
-	if (pendingFiles) pendingFiles.textContent = 'No files selected';
+	clearSelectedFiles();
 	closeModal();
 	showToast('Upload complete.');
 	await loadStorage();
@@ -481,11 +522,7 @@ detailsResizer?.addEventListener('pointerdown', (event) => {
 
 filter?.addEventListener('input', renderItems);
 fileInput?.addEventListener('change', () => {
-	if (pendingFiles) {
-		pendingFiles.textContent = fileInput.files?.length
-			? `${fileInput.files.length} file(s) selected`
-			: 'No files selected';
-	}
+	renderSelectedFiles(fileInput.files);
 });
 
 previewImage?.addEventListener('click', openImagePreview);
