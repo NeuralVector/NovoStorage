@@ -667,6 +667,23 @@ dd {
 	gap: 8px;
 	margin-top: 22px;
 }
+.upload-status {
+	display: flex;
+	align-items: center;
+	gap: 9px;
+	margin-top: 16px;
+	color: #667085;
+	font-size: 13px;
+}
+.upload-status .loading-spinner {
+	width: 16px;
+	height: 16px;
+	border-width: 2px;
+}
+.modal-actions button:disabled {
+	cursor: not-allowed;
+	opacity: 0.65;
+}
 .toast {
 	position: fixed;
 	right: 25px;
@@ -809,6 +826,9 @@ html[data-theme='dark'] .folder-picker:hover {
 	color: #93c5fd;
 }
 html[data-theme='dark'] .folder-picker-row span {
+	color: #9ca3af;
+}
+html[data-theme='dark'] .upload-status {
 	color: #9ca3af;
 }
 html[data-theme='dark'] .preview {

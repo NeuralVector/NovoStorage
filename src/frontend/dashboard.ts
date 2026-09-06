@@ -40,6 +40,12 @@ const previewModalImage = document.querySelector<HTMLImageElement>('#preview-mod
 const fileInput = document.querySelector<HTMLInputElement>('#file-input');
 const folderInput = document.querySelector<HTMLInputElement>('#folder-input');
 const dropZone = document.querySelector<HTMLElement>('.drop-zone');
+const uploadButton = document.querySelector<HTMLButtonElement>('[data-action="queue-upload"]');
+const uploadStatus = document.querySelector<HTMLElement>('#upload-status');
+const uploadStatusText = document.querySelector<HTMLElement>('#upload-status-text');
+const uploadCloseButtons = uploadModal?.querySelectorAll<HTMLButtonElement>(
+	'[data-action="close-modal"]'
+);
 const folderName = document.querySelector<HTMLInputElement>('#folder-name');
 const pendingFiles = document.querySelector('#pending-files');
 const accountName = document.querySelector('#account-name');
@@ -69,6 +75,7 @@ let currentPath = '';
 let previewUrl: string | null = null;
 let previewRequest = 0;
 let selectedUploads: SelectedUpload[] = [];
+let isUploading = false;
 
 function applyTheme(theme: 'light' | 'dark'): void {
 	document.documentElement.dataset['theme'] = theme;
@@ -486,11 +493,28 @@ function clearSelectedFiles(): void {
 	renderSelectedFiles(selectedUploads);
 }
 
+function setUploading(uploading: boolean): void {
+	isUploading = uploading;
+	if (uploadStatus) uploadStatus.hidden = !uploading;
+	if (uploadButton) {
+		uploadButton.disabled = uploading;
+		uploadButton.textContent = uploading ? 'Uploading…' : 'Upload';
+	}
+	for (const button of uploadCloseButtons ?? []) button.disabled = uploading;
+	if (fileInput) fileInput.disabled = uploading;
+	if (folderInput) folderInput.disabled = uploading;
+	if (dropZone) {
+		dropZone.setAttribute('aria-busy', String(uploading));
+		if (uploading) dropZone.classList.remove('drag-over');
+	}
+}
+
 renderSelectedFiles(selectedUploads);
 
 function closeModal(): void {
 	if (!modalBackdrop) return;
 	const uploadWasOpen = Boolean(uploadModal && !uploadModal.hidden);
+	if (uploadWasOpen && isUploading) return;
 	modalBackdrop.hidden = true;
 	if (uploadModal) uploadModal.hidden = true;
 	if (folderModal) folderModal.hidden = true;
@@ -508,37 +532,51 @@ function openImagePreview(): void {
 }
 
 async function uploadFiles(): Promise<void> {
+	if (isUploading) return;
 	if (selectedUploads.length === 0) {
 		showToast('Choose at least one file.');
 		return;
 	}
 
-	for (const selected of selectedUploads) {
-		const file = selected.file;
-		const relativeParts = selected.relativePath
-			.replaceAll('\\', '/')
-			.split('/')
-			.filter(Boolean);
-		relativeParts.pop();
-		const directoryPath = [currentPath, ...relativeParts].filter(Boolean).join('/');
-		const formData = new FormData();
-		formData.append('file', file, file.name);
-		const query = directoryPath ? `?path=${encodeURIComponent(directoryPath)}` : '';
-		const response = await fetch(`/api/files${query}`, {
-			method: 'POST',
-			body: formData
-		});
-		if (response.status === 401) {
-			window.location.assign('/login');
-			return;
+	setUploading(true);
+	try {
+		for (const [index, selected] of selectedUploads.entries()) {
+			const file = selected.file;
+			const relativeParts = selected.relativePath
+				.replaceAll('\\', '/')
+				.split('/')
+				.filter(Boolean);
+			relativeParts.pop();
+			const directoryPath = [currentPath, ...relativeParts]
+				.filter(Boolean)
+				.join('/');
+			if (uploadStatusText) {
+				uploadStatusText.textContent = `Uploading ${index + 1} of ${selectedUploads.length}…`;
+			}
+			const formData = new FormData();
+			formData.append('file', file, file.name);
+			const query = directoryPath
+				? `?path=${encodeURIComponent(directoryPath)}`
+				: '';
+			const response = await fetch(`/api/files${query}`, {
+				method: 'POST',
+				body: formData
+			});
+			if (response.status === 401) {
+				window.location.assign('/login');
+				return;
+			}
+			if (!response.ok) throw new Error(`Unable to upload ${file.name}`);
 		}
-		if (!response.ok) throw new Error(`Unable to upload ${file.name}`);
-	}
 
-	clearSelectedFiles();
-	closeModal();
-	showToast('Upload complete.');
-	await loadStorage();
+		clearSelectedFiles();
+		setUploading(false);
+		closeModal();
+		showToast('Upload complete.');
+		await loadStorage();
+	} finally {
+		setUploading(false);
+	}
 }
 
 async function createDirectory(): Promise<void> {

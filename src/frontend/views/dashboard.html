@@ -280,6 +280,16 @@
 					aria-live="polite"
 					aria-label="Files selected for upload"
 				></div>
+				<div
+					id="upload-status"
+					class="upload-status"
+					role="status"
+					aria-live="polite"
+					hidden
+				>
+					<span class="loading-spinner" aria-hidden="true"></span>
+					<span id="upload-status-text">Uploading files…</span>
+				</div>
 				<div class="modal-actions">
 					<button
 						class="secondary"
