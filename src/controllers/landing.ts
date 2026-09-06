@@ -17,6 +17,16 @@ export class LandingController {
 		@Req() request: FastifyRequest,
 		@Res() reply: FastifyReply
 	): Promise<void> {
+		const url = new URL(request.url, `${request.protocol}://${request.hostname}`);
+		const hasClerkHandoff = ['__clerk_db_jwt', '__clerk_handshake'].some((name) =>
+			url.searchParams.has(name)
+		);
+
+		if (hasClerkHandoff) {
+			url.pathname = '/dashboard';
+			return reply.redirect(`${url.pathname}${url.search}`, 302);
+		}
+
 		if (await this.auth.getCurrentUser(request)) {
 			reply.redirect('/dashboard', 302);
 			return;
