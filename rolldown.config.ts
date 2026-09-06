@@ -6,6 +6,9 @@ if (!clerkPublishableKey) {
 	throw new Error('CLERK_PUBLISHABLE_KEY is not set');
 }
 
+const frontendOutputDirectory =
+	process.env['ROLLDOWN_DEV'] === 'true' ? 'public/assets' : 'dist/public/assets';
+
 export default defineConfig([
 	{
 		input: 'src/server.ts',
@@ -22,7 +25,7 @@ export default defineConfig([
 		input: fg.sync('src/frontend/**/*.ts'),
 		platform: 'browser',
 		output: {
-			dir: 'dist/public/assets',
+			dir: frontendOutputDirectory,
 			format: 'esm',
 			sourcemap: true,
 			minify: true

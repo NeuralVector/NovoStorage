@@ -51,6 +51,9 @@ importers:
       '@types/node':
         specifier: ^26.4.1
         version: 26.4.1
+      '@varlock/infisical-plugin':
+        specifier: ^2.1.1
+        version: 2.1.1(varlock@1.18.0)
       fast-glob:
         specifier: ^3.3.3
         version: 3.3.3
@@ -75,6 +78,9 @@ importers:
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
+      varlock:
+        specifier: ^1.18.0
+        version: 1.18.0
 
 packages:
 
@@ -1691,6 +1697,30 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@varlock/infisical-plugin@2.1.1':
+    resolution: {integrity: sha512-z2qNir8qioKiDIBwRgq8UQI8BhzXf8jeGRFJrfvE7tq84ORPPsRj1I71C+wi0pmRXfHEGB9u1T88chYkjgVXSA==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      varlock: ^1.17.1
+
+  '@varlock/native-helper-darwin@1.18.0':
+    resolution: {integrity: sha512-O/Wn7G97N9RhdHrMNmDJtqH86+1vCKTzkThW7ICghvBtJslWAY4tpfDb32/AIh8OHOkIoHHmQ90ak6uovbZ2rw==}
+    os: [darwin]
+
+  '@varlock/native-helper-linux-arm64@1.18.0':
+    resolution: {integrity: sha512-oPEh5bFtBoRQlsLS0uou7vmuT3OeO0u6rvaNRuQO6P76b0hUSv/ZiNOEpUtS/e+iyJKIhl/0O1MrPq28Rxo9BQ==}
+    cpu: [arm64]
+    os: [linux]
+
+  '@varlock/native-helper-linux-x64@1.18.0':
+    resolution: {integrity: sha512-eUz2vLIMAKwiTMXfJDbJxIgV1D/GAUH6oKHde7i0kr4F+JpbduRblwbI8Qe1XF3DeEB/OBEJrtvhu0gp6t5d/g==}
+    cpu: [x64]
+    os: [linux]
+
+  '@varlock/native-helper-win32-x64@1.18.0':
+    resolution: {integrity: sha512-L95F5rrZtA6Fn1zjR2iIGBCHg+mA8tIylQOSo5TBZfAx0FlWd38jgwewm6b/nfYKeGrx/R6pSlSMDDuj1WsUMg==}
+    os: [win32, linux]
+
   '@wallet-standard/app@1.1.1':
     resolution: {integrity: sha512-WDGwoByhP5gwHH01r5EaLgQdLVkACPCdOMQhmhn8rsm10h/siSgTorShzBxrn0ExSPof+Lu+C3TfgqBrPa1xoQ==}
     engines: {node: '>=22'}
@@ -3065,6 +3095,11 @@ packages:
   uuid@8.3.2:
     resolution: {integrity: sha512-+NYs2QeMWy+GWFOEm9xnn6HCDp0l7QBD7ml8zLUmJ+93Q5NF0NocErnwkTkXVFNiX3/fpC6afS8Dhb/gz7R7eg==}
     deprecated: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
+    hasBin: true
+
+  varlock@1.18.0:
+    resolution: {integrity: sha512-wGf3OuFwPXL/yxEu1yhao0pNhof1ubbpo8guQML6w3n4Rp2DLGH2PZFGgmwVmNiqULRntat7+0MEJLK2V0zIXw==}
+    engines: {bun: '>=1.3.3', node: '>=22.3.0'}
     hasBin: true
 
   viem@2.56.3:
@@ -4918,6 +4953,22 @@ snapshots:
   '@typescript/typescript-win32-x64@7.0.2':
     optional: true
 
+  '@varlock/infisical-plugin@2.1.1(varlock@1.18.0)':
+    dependencies:
+      varlock: 1.18.0
+
+  '@varlock/native-helper-darwin@1.18.0':
+    optional: true
+
+  '@varlock/native-helper-linux-arm64@1.18.0':
+    optional: true
+
+  '@varlock/native-helper-linux-x64@1.18.0':
+    optional: true
+
+  '@varlock/native-helper-win32-x64@1.18.0':
+    optional: true
+
   '@wallet-standard/app@1.1.1':
     dependencies:
       '@wallet-standard/base': 1.1.1
@@ -6407,6 +6458,13 @@ snapshots:
   uuid@14.0.2: {}
 
   uuid@8.3.2: {}
+
+  varlock@1.18.0:
+    optionalDependencies:
+      '@varlock/native-helper-darwin': 1.18.0
+      '@varlock/native-helper-linux-arm64': 1.18.0
+      '@varlock/native-helper-linux-x64': 1.18.0
+      '@varlock/native-helper-win32-x64': 1.18.0
 
   viem@2.56.3(bufferutil@4.1.0)(typescript@7.0.2)(utf-8-validate@6.0.6):
     dependencies:
