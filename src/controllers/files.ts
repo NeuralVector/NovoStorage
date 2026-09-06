@@ -20,6 +20,7 @@ interface StorageItem {
 	path: string;
 	type: 'file' | 'directory';
 	size: number;
+	lastModified: string | null;
 }
 
 interface CreateDirectoryBody {
@@ -47,6 +48,13 @@ function splitFileName(fileName: string): { base: string; extension: string } {
 		base: fileName.slice(0, extensionIndex),
 		extension: fileName.slice(extensionIndex)
 	};
+}
+
+function latestDate(current: string | null | undefined, next: Date | undefined): string | null {
+	const nextValue = next?.toISOString();
+	if (!nextValue) return current ?? null;
+	if (!current || nextValue > current) return nextValue;
+	return current;
 }
 
 async function getAvailableFileKey(
@@ -98,10 +106,19 @@ export class FilesController {
 					index < parts.length - 1 || relativeKey.endsWith('/');
 
 				items.set(path, {
-					name: parts[index]!,
-					path,
+					...(items.get(path) ?? {
+						name: parts[index]!,
+						path,
+						type: isDirectory ? 'directory' : 'file',
+						size: isDirectory ? 0 : object.size,
+						lastModified: null
+					}),
 					type: isDirectory ? 'directory' : 'file',
-					size: isDirectory ? 0 : object.size
+					size: isDirectory ? 0 : object.size,
+					lastModified: latestDate(
+						items.get(path)?.lastModified,
+						object.lastModified
+					)
 				});
 			}
 		}

@@ -5,6 +5,7 @@ interface StorageItem {
 	path: string;
 	type: 'file' | 'directory';
 	size: number;
+	lastModified: string | null;
 }
 
 interface SelectedUpload {
@@ -67,6 +68,7 @@ detailsPanel?.prepend(detailsResizer);
 const detailName = document.querySelector('#detail-name');
 const detailMeta = document.querySelector('#detail-meta');
 const detailLocation = document.querySelector('#detail-location');
+const detailModified = document.querySelector('#detail-modified');
 const selectedDownload = document.querySelector<HTMLButtonElement>('[data-action="download"]');
 
 let storageItems: StorageItem[] = [];
@@ -134,6 +136,16 @@ function formatFileSize(bytes: number): string {
 	const units = ['B', 'KB', 'MB', 'GB', 'TB'];
 	const unitIndex = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
 	return `${(bytes / 1024 ** unitIndex).toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+}
+
+function formatLastModified(value: string | null): string {
+	if (!value) return '—';
+	const date = new Date(value);
+	if (Number.isNaN(date.getTime())) return '—';
+	return new Intl.DateTimeFormat(undefined, {
+		dateStyle: 'medium',
+		timeStyle: 'short'
+	}).format(date);
 }
 
 function showToast(message: string): void {
@@ -229,6 +241,7 @@ function selectItem(item: StorageItem): void {
 		detailMeta.textContent = `${item.type.toUpperCase()} · ${formatFileSize(item.size)}`;
 	}
 	if (detailLocation) detailLocation.textContent = item.path;
+	if (detailModified) detailModified.textContent = formatLastModified(item.lastModified);
 	if (selectedDownload) selectedDownload.hidden = item.type !== 'file';
 	void loadImagePreview(item);
 	for (const row of document.querySelectorAll<HTMLElement>('.file-row')) {
@@ -321,7 +334,7 @@ function renderItems(): void {
 
 		for (const value of [
 			item.type === 'directory' ? '—' : 'You',
-			'—',
+			formatLastModified(item.lastModified),
 			item.type === 'directory' ? '—' : formatFileSize(item.size)
 		]) {
 			const cell = document.createElement('span');

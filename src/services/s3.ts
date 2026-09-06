@@ -74,7 +74,18 @@ export class S3ObjectStorage implements ObjectStorage {
 			objects.push(
 				...(result.Contents?.flatMap((object) =>
 					object.Key
-						? [{ key: object.Key, size: object.Size ?? 0 }]
+						? [
+								{
+									key: object.Key,
+									size: object.Size ?? 0,
+									...(object.LastModified
+										? {
+												lastModified:
+													object.LastModified
+											}
+										: {})
+								}
+							]
 						: []
 				) ?? [])
 			);

@@ -5,6 +5,7 @@ export const OBJECT_STORAGE = Symbol('OBJECT_STORAGE');
 export interface StorageObject {
 	key: string;
 	size: number;
+	lastModified?: Date;
 }
 
 export interface ObjectStorage {
