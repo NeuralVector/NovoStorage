@@ -257,6 +257,35 @@ main > header {
 .header-actions {
 	gap: 12px;
 }
+.theme-toggle {
+	display: inline-grid;
+	place-items: center;
+	width: 38px;
+	height: 36px;
+	padding: 0;
+	border: 1px solid #d9e0ea;
+	border-radius: 7px;
+	color: #172033;
+	background: #fff;
+}
+.theme-icon {
+	display: block;
+	width: 18px;
+	height: 18px;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 1.8;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+.theme-icon-moon {
+	fill: currentColor;
+	stroke: none;
+}
+.theme-toggle:hover {
+	border-color: #146ef5;
+	color: #146ef5;
+}
 .heading {
 	display: flex;
 	justify-content: space-between;
@@ -580,6 +609,116 @@ dd {
 	border-radius: 7px;
 	color: #fff;
 	background: #172033;
+}
+
+html[data-theme='dark'] {
+	color: #e5e7eb;
+	background: #111827;
+}
+html[data-theme='dark'] body,
+html[data-theme='dark'] main {
+	background: #111827;
+}
+html[data-theme='dark'] .sidebar,
+html[data-theme='dark'] .details,
+html[data-theme='dark'] main > header,
+html[data-theme='dark'] .search,
+html[data-theme='dark'] .filter,
+html[data-theme='dark'] .view,
+html[data-theme='dark'] .file-table,
+html[data-theme='dark'] .modal,
+html[data-theme='dark'] .popover {
+	background: #1f2937;
+	border-color: #374151;
+}
+html[data-theme='dark'] .theme-toggle,
+html[data-theme='dark'] .sign-out {
+	color: #e5e7eb;
+	background: #1f2937;
+	border-color: #4b5563;
+}
+html[data-theme='dark'] .theme-toggle:hover,
+html[data-theme='dark'] .sign-out:hover {
+	color: #93c5fd;
+	border-color: #60a5fa;
+}
+html[data-theme='dark'] .create-menu button {
+	color: #e5e7eb;
+}
+html[data-theme='dark'] .search span {
+	color: #93c5fd;
+}
+html[data-theme='dark'] .account small,
+html[data-theme='dark'] .heading span,
+html[data-theme='dark'] .section-title span,
+html[data-theme='dark'] .crumb,
+html[data-theme='dark'] .details section p,
+html[data-theme='dark'] .details dd,
+html[data-theme='dark'] .details-empty,
+html[data-theme='dark'] .empty-state,
+html[data-theme='dark'] .loading-state,
+html[data-theme='dark'] .status-bar,
+html[data-theme='dark'] dt,
+html[data-theme='dark'] .drop-zone span,
+html[data-theme='dark'] .pending-files {
+	color: #9ca3af;
+}
+html[data-theme='dark'] .crumb strong,
+html[data-theme='dark'] .heading h1,
+html[data-theme='dark'] .section-title h2,
+html[data-theme='dark'] .details section h2,
+html[data-theme='dark'] .details-empty h2,
+html[data-theme='dark'] .empty-state h2,
+html[data-theme='dark'] .file-name {
+	color: #f3f4f6;
+}
+html[data-theme='dark'] .nav-item {
+	color: #9ca3af;
+}
+html[data-theme='dark'] .nav-item.active,
+html[data-theme='dark'] .nav-item:hover,
+html[data-theme='dark'] .view.selected {
+	color: #93c5fd;
+	background: #1e3a5f;
+}
+html[data-theme='dark'] .search input,
+html[data-theme='dark'] .field {
+	color: #e5e7eb;
+	background: #111827;
+	border-color: #4b5563;
+}
+html[data-theme='dark'] .search input::placeholder {
+	color: #9ca3af;
+	opacity: 1;
+}
+html[data-theme='dark'] .table-head {
+	border-color: #374151;
+	color: #9ca3af;
+}
+html[data-theme='dark'] .file-row {
+	border-color: #374151;
+}
+html[data-theme='dark'] .file-row.selected {
+	background: #1e3a5f;
+}
+html[data-theme='dark'] .file-table.grid .file-row {
+	border-color: #374151;
+}
+html[data-theme='dark'] .menu button:hover,
+html[data-theme='dark'] .popover button:hover {
+	background: #374151;
+}
+html[data-theme='dark'] .storage-quota {
+	border-color: #374151;
+}
+html[data-theme='dark'] .storage-quota i {
+	background: #374151;
+}
+html[data-theme='dark'] .drop-zone {
+	border-color: #4b5563;
+}
+html[data-theme='dark'] .preview {
+	background: #1e3a5f;
 }
 @media (max-width: 1100px) {
 	.app-shell,

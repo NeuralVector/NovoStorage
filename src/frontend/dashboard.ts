@@ -21,6 +21,9 @@ const fileInput = document.querySelector<HTMLInputElement>('#file-input');
 const folderName = document.querySelector<HTMLInputElement>('#folder-name');
 const pendingFiles = document.querySelector('#pending-files');
 const accountName = document.querySelector('#account-name');
+const themeToggle = document.querySelector<HTMLButtonElement>('[data-action="toggle-theme"]');
+const moonIcon = themeToggle?.querySelector<SVGElement>('[data-theme-icon="moon"]');
+const sunIcon = themeToggle?.querySelector<SVGElement>('[data-theme-icon="sun"]');
 const detailsEmpty = document.querySelector<HTMLElement>('#details-empty');
 const detailsContent = document.querySelector<HTMLElement>('#details-content');
 const detailsPanel = document.querySelector<HTMLElement>('#details-panel');
@@ -43,6 +46,22 @@ let selectedItem: StorageItem | null = null;
 let currentPath = '';
 let previewUrl: string | null = null;
 let previewRequest = 0;
+
+function applyTheme(theme: 'light' | 'dark'): void {
+	document.documentElement.dataset['theme'] = theme;
+	localStorage.setItem('novostorage-theme', theme);
+	if (themeToggle) {
+		const nextTheme = theme === 'dark' ? 'light' : 'dark';
+		moonIcon?.toggleAttribute('hidden', theme === 'dark');
+		sunIcon?.toggleAttribute('hidden', theme !== 'dark');
+		themeToggle.setAttribute('aria-pressed', String(theme === 'dark'));
+		themeToggle.setAttribute('aria-label', `Enable ${nextTheme} mode`);
+		themeToggle.title = `Enable ${nextTheme} mode`;
+	}
+}
+
+const savedTheme = localStorage.getItem('novostorage-theme');
+applyTheme(savedTheme === 'dark' ? 'dark' : 'light');
 
 function renderBreadcrumb(): void {
 	if (!breadcrumb) return;
@@ -390,6 +409,13 @@ document.addEventListener('click', (event) => {
 	if (!action) return;
 
 	switch (action) {
+		case 'toggle-theme':
+			applyTheme(
+				document.documentElement.dataset['theme'] === 'dark'
+					? 'light'
+					: 'dark'
+			);
+			break;
 		case 'sign-out':
 			void signOut();
 			break;
