@@ -162,8 +162,14 @@
 					<p>Select a file to view information and actions.</p>
 				</div>
 				<div id="details-content" hidden>
-					<div class="preview">
+					<div id="preview" class="preview">
 						<b id="preview-type">FILE</b><i></i><i></i><i></i>
+						<img
+							id="preview-image"
+							class="preview-image"
+							alt=""
+							hidden
+						/>
 					</div>
 					<section>
 						<h2 id="detail-name">—</h2>
@@ -281,6 +287,24 @@
 						Create folder
 					</button>
 				</div>
+			</section>
+			<section
+				id="preview-modal"
+				class="modal preview-modal"
+				hidden
+				aria-modal="true"
+				role="dialog"
+				aria-label="Image preview"
+			>
+				<button
+					class="modal-close"
+					type="button"
+					data-action="close-modal"
+					aria-label="Close image preview"
+				>
+					×
+				</button>
+				<img id="preview-modal-image" class="preview-modal-image" alt="" />
 			</section>
 		</div>
 		<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>

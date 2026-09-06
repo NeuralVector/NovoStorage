@@ -444,11 +444,28 @@ main > header {
 .preview {
 	display: grid;
 	place-items: center;
-	height: 150px;
+	width: 100%;
+	height: 180px;
 	margin: 25px 0;
+	overflow: hidden;
 	border-radius: 10px;
 	background: #eaf2ff;
 	color: #146ef5;
+}
+.preview-image {
+	display: block;
+	width: auto;
+	height: auto;
+	max-width: 100%;
+	max-height: 100%;
+	min-width: 0;
+	min-height: 0;
+	border-radius: 8px;
+	cursor: zoom-in;
+}
+.preview.has-image > b,
+.preview.has-image > i {
+	display: none;
 }
 .details section h2 {
 	overflow-wrap: anywhere;
@@ -496,6 +513,17 @@ dd {
 	border-radius: 12px;
 	background: #fff;
 	box-shadow: 0 16px 50px #17203344;
+}
+.preview-modal {
+	width: min(900px, calc(100vw - 32px));
+	height: min(80vh, 700px);
+	padding: 48px 24px 24px;
+}
+.preview-modal-image {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
 }
 .modal-close {
 	position: absolute;

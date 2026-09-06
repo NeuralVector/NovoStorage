@@ -15,6 +15,8 @@ const toast = document.querySelector<HTMLElement>('#toast');
 const modalBackdrop = document.querySelector<HTMLElement>('#modal-backdrop');
 const uploadModal = document.querySelector<HTMLElement>('#upload-modal');
 const folderModal = document.querySelector<HTMLElement>('#folder-modal');
+const previewModal = document.querySelector<HTMLElement>('#preview-modal');
+const previewModalImage = document.querySelector<HTMLImageElement>('#preview-modal-image');
 const fileInput = document.querySelector<HTMLInputElement>('#file-input');
 const folderName = document.querySelector<HTMLInputElement>('#folder-name');
 const pendingFiles = document.querySelector('#pending-files');
@@ -23,6 +25,9 @@ const detailsEmpty = document.querySelector<HTMLElement>('#details-empty');
 const detailsContent = document.querySelector<HTMLElement>('#details-content');
 const detailsPanel = document.querySelector<HTMLElement>('#details-panel');
 const appShell = document.querySelector<HTMLElement>('.app-shell');
+const preview = document.querySelector<HTMLElement>('#preview');
+const previewType = document.querySelector<HTMLElement>('#preview-type');
+const previewImage = document.querySelector<HTMLImageElement>('#preview-image');
 const detailsResizer = document.createElement('div');
 detailsResizer.className = 'details-resizer';
 detailsResizer.setAttribute('aria-label', 'Resize details panel');
@@ -36,6 +41,8 @@ const selectedDownload = document.querySelector<HTMLButtonElement>('[data-action
 let storageItems: StorageItem[] = [];
 let selectedItem: StorageItem | null = null;
 let currentPath = '';
+let previewUrl: string | null = null;
+let previewRequest = 0;
 
 function renderBreadcrumb(): void {
 	if (!breadcrumb) return;
@@ -94,6 +101,72 @@ function download(item: StorageItem): void {
 	window.location.assign(`/api/files/download?${query.toString()}`);
 }
 
+function imageMimeType(name: string): string | null {
+	const extension = name.split('.').pop()?.toLowerCase();
+	const mimeTypes: Record<string, string> = {
+		avif: 'image/avif',
+		bmp: 'image/bmp',
+		gif: 'image/gif',
+		jpeg: 'image/jpeg',
+		jpg: 'image/jpeg',
+		png: 'image/png',
+		svg: 'image/svg+xml',
+		webp: 'image/webp'
+	};
+	return extension ? (mimeTypes[extension] ?? null) : null;
+}
+
+function resetPreview(): void {
+	previewRequest += 1;
+	if (previewUrl) URL.revokeObjectURL(previewUrl);
+	previewUrl = null;
+	preview?.classList.remove('has-image');
+	if (previewType) {
+		previewType.hidden = false;
+		previewType.textContent = 'FILE';
+	}
+	if (previewImage) {
+		previewImage.hidden = true;
+		previewImage.removeAttribute('src');
+	}
+}
+
+async function loadImagePreview(item: StorageItem): Promise<void> {
+	resetPreview();
+	const mimeType = imageMimeType(item.name);
+	if (item.type !== 'file' || !mimeType || !previewImage) return;
+
+	const request = previewRequest;
+	if (previewType) {
+		previewType.hidden = false;
+		previewType.textContent = 'Loading preview…';
+	}
+
+	try {
+		const query = new URLSearchParams({ path: item.path });
+		const response = await fetch(`/api/files/download?${query.toString()}`);
+		if (request !== previewRequest) return;
+		if (!response.ok) {
+			if (previewType) previewType.textContent = 'Preview unavailable';
+			return;
+		}
+
+		const file = await response.blob();
+		if (request !== previewRequest) return;
+
+		previewUrl = URL.createObjectURL(new Blob([file], { type: mimeType }));
+		previewImage.src = previewUrl;
+		previewImage.alt = item.name;
+		previewImage.hidden = false;
+		preview?.classList.add('has-image');
+		if (previewType) previewType.hidden = true;
+	} catch {
+		if (request === previewRequest && previewType) {
+			previewType.textContent = 'Preview unavailable';
+		}
+	}
+}
+
 function selectItem(item: StorageItem): void {
 	selectedItem = item;
 	if (detailsPanel) detailsPanel.hidden = false;
@@ -106,6 +179,7 @@ function selectItem(item: StorageItem): void {
 	}
 	if (detailLocation) detailLocation.textContent = item.path;
 	if (selectedDownload) selectedDownload.hidden = item.type !== 'file';
+	void loadImagePreview(item);
 	for (const row of document.querySelectorAll<HTMLElement>('.file-row')) {
 		row.classList.toggle('selected', row.dataset['path'] === item.path);
 	}
@@ -114,6 +188,7 @@ function selectItem(item: StorageItem): void {
 function navigateTo(path: string): void {
 	currentPath = path;
 	selectedItem = null;
+	resetPreview();
 	if (detailsPanel) detailsPanel.hidden = true;
 	appShell?.classList.remove('has-details');
 	renderBreadcrumb();
@@ -242,6 +317,16 @@ function closeModal(): void {
 	modalBackdrop.hidden = true;
 	if (uploadModal) uploadModal.hidden = true;
 	if (folderModal) folderModal.hidden = true;
+	if (previewModal) previewModal.hidden = true;
+	if (previewModalImage) previewModalImage.removeAttribute('src');
+}
+
+function openImagePreview(): void {
+	if (!previewImage?.src || !previewModal || !previewModalImage || !modalBackdrop) return;
+	previewModalImage.src = previewImage.src;
+	previewModalImage.alt = previewImage.alt;
+	modalBackdrop.hidden = false;
+	previewModal.hidden = false;
 }
 
 async function uploadFiles(): Promise<void> {
@@ -341,6 +426,7 @@ document.addEventListener('click', (event) => {
 			void loadStorage();
 			break;
 		case 'close-details':
+			resetPreview();
 			if (detailsPanel) detailsPanel.hidden = true;
 			appShell?.classList.remove('has-details');
 			if (detailsEmpty) detailsEmpty.hidden = false;
@@ -373,6 +459,8 @@ fileInput?.addEventListener('change', () => {
 			: 'No files selected';
 	}
 });
+
+previewImage?.addEventListener('click', openImagePreview);
 
 for (const button of document.querySelectorAll<HTMLButtonElement>('[data-view]')) {
 	button.addEventListener('click', () => {
