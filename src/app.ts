@@ -29,12 +29,15 @@ export async function createApp() {
 
 	const fastify = app.getHttpAdapter().getInstance();
 	const builtPublicDirectory = path.join(import.meta.dirname, 'public');
-	const sourcePublicDirectory = path.join(import.meta.dirname, '../public');
+	const developmentPublicDirectory = path.join(import.meta.dirname, '../dist/public');
+	const sourceFrontendDirectory = path.join(import.meta.dirname, 'frontend');
 
 	await fastify.register(fastifyStatic, {
 		root: existsSync(builtPublicDirectory)
 			? builtPublicDirectory
-			: sourcePublicDirectory
+			: existsSync(developmentPublicDirectory)
+				? developmentPublicDirectory
+				: sourceFrontendDirectory
 	});
 
 	await fastify.register(clerkPlugin);

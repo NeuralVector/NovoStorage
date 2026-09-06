@@ -25,9 +25,9 @@
 		"#utils/*": "./src/utils/*"
 	},
 	"scripts": {
-		"dev": "varlock run -- sh -c 'ROLLDOWN_DEV=true node --import=tsx/esm node_modules/rolldown/dist/cli.mjs -c --watch & frontend_pid=$!; trap \"kill $frontend_pid\" EXIT; exec node --import=tsx/esm --watch src/server.ts'",
-		"dev:bun": "varlock run -- sh -c 'ROLLDOWN_DEV=true bun node_modules/rolldown/dist/cli.mjs -c --watch & frontend_pid=$!; trap \"kill $frontend_pid\" EXIT; exec bun --watch src/server.ts'",
-		"build": "varlock run -- sh -c 'rm -rf dist && node --import=tsx/esm node_modules/rolldown/dist/cli.mjs -c && cp -r public/* dist/public/'",
+		"dev": "varlock run -- sh -c 'mkdir -p dist/public && cp -r src/frontend/views dist/public/ && cp -r src/frontend/assets dist/public/ && node --import=tsx/esm node_modules/rolldown/dist/cli.mjs -c --watch & frontend_pid=$!; trap \"kill $frontend_pid\" EXIT; exec node --import=tsx/esm --watch src/server.ts'",
+		"dev:bun": "varlock run -- sh -c 'mkdir -p dist/public && cp -r src/frontend/views dist/public/ && cp -r src/frontend/assets dist/public/ && bun node_modules/rolldown/dist/cli.mjs -c --watch & frontend_pid=$!; trap \"kill $frontend_pid\" EXIT; exec bun --watch src/server.ts'",
+		"build": "varlock run -- sh -c 'rm -rf dist && node --import=tsx/esm node_modules/rolldown/dist/cli.mjs -c && cp -r src/frontend/views dist/public/ && cp -r src/frontend/assets dist/public/'",
 		"start": "varlock run -- node dist/server.js",
 		"start:bun": "varlock run -- bun dist/server.js"
 	},
