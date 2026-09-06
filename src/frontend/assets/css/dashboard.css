@@ -721,6 +721,11 @@ html[data-theme='dark'] .sign-out {
 	background: #1f2937;
 	border-color: #4b5563;
 }
+html[data-theme='dark'] .modal-close,
+html[data-theme='dark'] .details-head button,
+html[data-theme='dark'] .secondary {
+	color: #fff !important;
+}
 html[data-theme='dark'] .theme-toggle:hover,
 html[data-theme='dark'] .sign-out:hover {
 	color: #93c5fd;
@@ -776,11 +781,14 @@ html[data-theme='dark'] .view.selected {
 	color: #93c5fd;
 	background: #1e3a5f;
 }
-html[data-theme='dark'] .search input,
 html[data-theme='dark'] .field {
 	color: #e5e7eb;
 	background: #111827;
 	border-color: #4b5563;
+}
+html[data-theme='dark'] .search input {
+	color: #e5e7eb;
+	background: transparent;
 }
 html[data-theme='dark'] .search input::placeholder {
 	color: #9ca3af;
