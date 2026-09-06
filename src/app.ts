@@ -39,7 +39,11 @@ export async function createApp() {
 				: sourceFrontendDirectory
 	});
 
-	await fastify.register(fastifyMultipart);
+	await fastify.register(fastifyMultipart, {
+		limits: {
+			fileSize: Infinity
+		}
+	});
 
 	return app;
 }

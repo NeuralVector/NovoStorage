@@ -6,6 +6,7 @@ import {
 	PutObjectCommand,
 	S3Client
 } from '@aws-sdk/client-s3';
+import { Upload } from '@aws-sdk/lib-storage';
 import { Inject, Injectable } from '@nestjs/common';
 
 import config from '#config';
@@ -28,15 +29,21 @@ export const s3ClientProvider = {
 export class S3ObjectStorage implements ObjectStorage {
 	constructor(@Inject(S3Client) private readonly client: S3Client) {}
 
-	async upload(key: string, body: Buffer, contentType?: string): Promise<void> {
-		const command = new PutObjectCommand({
-			Bucket: config.get('storage.s3.bucket'),
-			Key: key,
-			Body: body,
-			...(contentType ? { ContentType: contentType } : {})
+	async upload(key: string, body: Buffer | Readable, contentType?: string): Promise<void> {
+		const upload = new Upload({
+			client: this.client,
+			params: {
+				Bucket: config.get('storage.s3.bucket'),
+				Key: key,
+				Body: body,
+				...(contentType ? { ContentType: contentType } : {})
+			},
+			partSize: 10 * 1024 * 1024,
+			queueSize: 2,
+			leavePartsOnError: false
 		});
 
-		await this.client.send(command);
+		await upload.done();
 	}
 
 	async createDirectory(key: string): Promise<void> {

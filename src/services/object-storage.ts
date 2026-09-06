@@ -8,7 +8,7 @@ export interface StorageObject {
 }
 
 export interface ObjectStorage {
-	upload(key: string, body: Buffer, contentType?: string): Promise<void>;
+	upload(key: string, body: Buffer | Readable, contentType?: string): Promise<void>;
 	createDirectory(key: string): Promise<void>;
 	list(userId: string): Promise<StorageObject[]>;
 	download(key: string): Promise<Readable>;

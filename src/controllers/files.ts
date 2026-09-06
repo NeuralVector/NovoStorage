@@ -128,7 +128,7 @@ export class FilesController {
 
 		const path = validateRelativePath(directoryPath);
 		const key = `${user.userId}/${path ? `${path}/` : ''}${fileName}`;
-		await this.storage.upload(key, await file.toBuffer(), file.mimetype);
+		await this.storage.upload(key, file.file, file.mimetype);
 
 		return { key };
 	}
