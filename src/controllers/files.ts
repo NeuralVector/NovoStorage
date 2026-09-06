@@ -49,7 +49,7 @@ export class FilesController {
 
 	@Get('files')
 	async listFiles(@Req() request: FastifyRequest): Promise<StorageItem[]> {
-		const user = this.auth.requireUser(request);
+		const user = await this.auth.requireUser(request);
 		const objects = await this.storage.list(user.userId);
 		const items = new Map<string, StorageItem>();
 		const userPrefix = `${user.userId}/`;
@@ -86,7 +86,7 @@ export class FilesController {
 		@Req() request: FastifyRequest,
 		@Res() reply: FastifyReply
 	): Promise<void> {
-		const user = this.auth.requireUser(request);
+		const user = await this.auth.requireUser(request);
 		const normalizedPath = filePath?.replaceAll('\\', '/');
 
 		if (
@@ -114,7 +114,7 @@ export class FilesController {
 		@Query('path') directoryPath: string,
 		@Req() request: FastifyRequest
 	): Promise<{ key: string }> {
-		const user = this.auth.requireUser(request);
+		const user = await this.auth.requireUser(request);
 		const file = await request.file();
 
 		if (!file) {
@@ -138,7 +138,7 @@ export class FilesController {
 		@Body() body: CreateDirectoryBody,
 		@Req() request: FastifyRequest
 	): Promise<{ key: string }> {
-		const user = this.auth.requireUser(request);
+		const user = await this.auth.requireUser(request);
 		const name = body?.name?.trim();
 		const parent = validateRelativePath(body?.parent);
 

@@ -6,6 +6,10 @@ const clerk = new Clerk(CLERK_PUBLISHABLE_KEY);
 
 await clerk.load();
 
+export function isSignedIn(): boolean {
+	return clerk.isSignedIn;
+}
+
 export function signOut(): Promise<void> {
 	return clerk.signOut({
 		redirectUrl: '/'

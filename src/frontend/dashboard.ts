@@ -1,4 +1,4 @@
-import { getCurrentUserName, signOut } from './auth.ts';
+import { getCurrentUserName, isSignedIn, signOut } from './auth.ts';
 
 interface StorageItem {
 	name: string;
@@ -398,4 +398,8 @@ for (const button of document.querySelectorAll<HTMLButtonElement>('[data-view-mo
 
 if (accountName) accountName.textContent = getCurrentUserName();
 renderBreadcrumb();
-void loadStorage();
+if (isSignedIn()) {
+	void loadStorage();
+} else {
+	window.location.replace('/login');
+}

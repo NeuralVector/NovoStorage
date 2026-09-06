@@ -2,7 +2,6 @@ import 'reflect-metadata';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 
-import { clerkPlugin } from '@clerk/fastify';
 import fastifyMultipart from '@fastify/multipart';
 import fastifyStatic from '@fastify/static';
 import { NestFactory } from '@nestjs/core';
@@ -40,7 +39,6 @@ export async function createApp() {
 				: sourceFrontendDirectory
 	});
 
-	await fastify.register(clerkPlugin);
 	await fastify.register(fastifyMultipart);
 
 	return app;

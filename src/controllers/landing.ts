@@ -17,7 +17,7 @@ export class LandingController {
 		@Req() request: FastifyRequest,
 		@Res() reply: FastifyReply
 	): Promise<void> {
-		if (this.auth.getCurrentUser(request)) {
+		if (await this.auth.getCurrentUser(request)) {
 			reply.redirect('/dashboard', 302);
 			return;
 		}
@@ -36,8 +36,12 @@ export class LandingController {
 
 	private dashboardUrl(): string {
 		const url = new URL(config.get('website.url'));
-		url.port = String(config.get('server.port'));
+		if (!url.port && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) {
+			url.port = String(config.get('server.port'));
+		}
 		url.pathname = '/dashboard';
+		url.search = '';
+		url.hash = '';
 
 		return url.toString();
 	}

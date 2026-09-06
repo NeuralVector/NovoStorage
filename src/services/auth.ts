@@ -1,4 +1,4 @@
-import { getAuth } from '@clerk/fastify';
+import { clerkClient } from '@clerk/fastify';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
@@ -12,8 +12,8 @@ export interface AuthenticatedUser {
 }
 
 export interface AuthOperations {
-	getCurrentUser(request: FastifyRequest): AuthenticatedUser | null;
-	requireUser(request: FastifyRequest): AuthenticatedUser;
+	getCurrentUser(request: FastifyRequest): Promise<AuthenticatedUser | null>;
+	requireUser(request: FastifyRequest): Promise<AuthenticatedUser>;
 	redirectToSignIn(reply: FastifyReply, redirectUrl: string): FastifyReply;
 	redirectToSignUp(reply: FastifyReply, redirectUrl: string): FastifyReply;
 }
@@ -21,13 +21,40 @@ export interface AuthOperations {
 @Injectable()
 export class ClerkAuthOperations implements AuthOperations {
 	private readonly accountPortalUrl = config.get('clerk.accountPortalUrl');
+	private readonly publishableKey: string;
 
-	getCurrentUser(request: FastifyRequest): AuthenticatedUser | null {
-		const auth = getAuth(request);
+	constructor() {
+		const publishableKey = process.env['CLERK_PUBLISHABLE_KEY'];
+		if (!publishableKey) {
+			throw new Error('CLERK_PUBLISHABLE_KEY is required');
+		}
+		this.publishableKey = publishableKey;
+	}
 
-		if (!auth.isAuthenticated || !auth.userId) {
+	async getCurrentUser(request: FastifyRequest): Promise<AuthenticatedUser | null> {
+		const headers = new Headers();
+		for (const [name, value] of Object.entries(request.headers)) {
+			if (typeof value === 'string') headers.set(name, value);
+			else if (Array.isArray(value)) headers.set(name, value.join(', '));
+		}
+
+		const url = new URL(request.url, `${request.protocol}://${request.hostname}`);
+		const requestState = await clerkClient.authenticateRequest(
+			new Request(url, {
+				method: request.method,
+				headers
+			}),
+			{
+				acceptsToken: 'session_token',
+				publishableKey: this.publishableKey
+			}
+		);
+
+		if (requestState.status !== 'signed-in') {
 			return null;
 		}
+
+		const auth = requestState.toAuth();
 
 		return {
 			userId: auth.userId,
@@ -35,8 +62,8 @@ export class ClerkAuthOperations implements AuthOperations {
 		};
 	}
 
-	requireUser(request: FastifyRequest): AuthenticatedUser {
-		const user = this.getCurrentUser(request);
+	async requireUser(request: FastifyRequest): Promise<AuthenticatedUser> {
+		const user = await this.getCurrentUser(request);
 
 		if (!user) {
 			throw new UnauthorizedException();
