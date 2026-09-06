@@ -576,6 +576,10 @@ dd {
 	border-radius: 10px;
 	cursor: pointer;
 }
+.drop-zone.drag-over {
+	border-color: #146ef5;
+	background: #eef5ff;
+}
 .drop-zone b {
 	font-size: 28px;
 	color: #146ef5;
@@ -767,6 +771,10 @@ html[data-theme='dark'] .storage-quota i {
 }
 html[data-theme='dark'] .drop-zone {
 	border-color: #4b5563;
+}
+html[data-theme='dark'] .drop-zone.drag-over {
+	border-color: #60a5fa;
+	background: #1e3a5f;
 }
 html[data-theme='dark'] .preview {
 	background: #1e3a5f;

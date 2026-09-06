@@ -18,6 +18,7 @@ const folderModal = document.querySelector<HTMLElement>('#folder-modal');
 const previewModal = document.querySelector<HTMLElement>('#preview-modal');
 const previewModalImage = document.querySelector<HTMLImageElement>('#preview-modal-image');
 const fileInput = document.querySelector<HTMLInputElement>('#file-input');
+const dropZone = document.querySelector<HTMLElement>('.drop-zone');
 const folderName = document.querySelector<HTMLInputElement>('#folder-name');
 const pendingFiles = document.querySelector('#pending-files');
 const accountName = document.querySelector('#account-name');
@@ -522,6 +523,40 @@ detailsResizer?.addEventListener('pointerdown', (event) => {
 
 filter?.addEventListener('input', renderItems);
 fileInput?.addEventListener('change', () => {
+	renderSelectedFiles(fileInput.files);
+});
+
+let dragDepth = 0;
+
+dropZone?.addEventListener('dragenter', (event) => {
+	event.preventDefault();
+	dragDepth += 1;
+	dropZone.classList.add('drag-over');
+});
+
+dropZone?.addEventListener('dragover', (event) => {
+	event.preventDefault();
+	if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+});
+
+dropZone?.addEventListener('dragleave', (event) => {
+	event.preventDefault();
+	dragDepth = Math.max(0, dragDepth - 1);
+	if (dragDepth === 0) dropZone.classList.remove('drag-over');
+});
+
+dropZone?.addEventListener('drop', (event) => {
+	event.preventDefault();
+	dragDepth = 0;
+	dropZone.classList.remove('drag-over');
+
+	const droppedFiles = [...(event.dataTransfer?.files ?? [])];
+	if (!fileInput || droppedFiles.length === 0) return;
+
+	const transfer = new DataTransfer();
+	for (const file of fileInput.files ?? []) transfer.items.add(file);
+	for (const file of droppedFiles) transfer.items.add(file);
+	fileInput.files = transfer.files;
 	renderSelectedFiles(fileInput.files);
 });
 
