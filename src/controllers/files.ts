@@ -40,6 +40,37 @@ function validateRelativePath(value: string | undefined): string {
 	return path;
 }
 
+function splitFileName(fileName: string): { base: string; extension: string } {
+	const extensionIndex = fileName.lastIndexOf('.');
+	if (extensionIndex <= 0) return { base: fileName, extension: '' };
+	return {
+		base: fileName.slice(0, extensionIndex),
+		extension: fileName.slice(extensionIndex)
+	};
+}
+
+async function getAvailableFileKey(
+	storage: ObjectStorage,
+	userId: string,
+	path: string,
+	fileName: string
+): Promise<string> {
+	const existingKeys = new Set((await storage.list(userId)).map((object) => object.key));
+	const prefix = `${userId}/${path ? `${path}/` : ''}`;
+	const { base, extension } = splitFileName(fileName);
+
+	for (let suffix = 0; ; suffix += 1) {
+		const candidateName = suffix === 0 ? fileName : `${base} (${suffix})${extension}`;
+		const candidateKey = `${prefix}${candidateName}`;
+
+		// Treat a matching directory as a collision too, so the UI cannot show
+		// both a file and a directory with the same path.
+		if (!existingKeys.has(candidateKey) && !existingKeys.has(`${candidateKey}/`)) {
+			return candidateKey;
+		}
+	}
+}
+
 @Controller('api')
 export class FilesController {
 	constructor(
@@ -127,7 +158,7 @@ export class FilesController {
 		}
 
 		const path = validateRelativePath(directoryPath);
-		const key = `${user.userId}/${path ? `${path}/` : ''}${fileName}`;
+		const key = await getAvailableFileKey(this.storage, user.userId, path, fileName);
 		await this.storage.upload(key, file.file, file.mimetype);
 
 		return { key };
