@@ -7,6 +7,26 @@ interface StorageItem {
 	size: number;
 }
 
+interface SelectedUpload {
+	file: File;
+	relativePath: string;
+}
+
+interface DroppedEntry {
+	isFile: boolean;
+	isDirectory: boolean;
+	name: string;
+	file?: (onFile: (file: File) => void, onError?: (error: unknown) => void) => void;
+	createReader?: () => DroppedDirectoryReader;
+}
+
+interface DroppedDirectoryReader {
+	readEntries: (
+		onEntries: (entries: DroppedEntry[]) => void,
+		onError?: (error: unknown) => void
+	) => void;
+}
+
 const fileRows = document.querySelector('#file-rows');
 const itemCount = document.querySelector('#item-count');
 const breadcrumb = document.querySelector('#breadcrumb');
@@ -18,6 +38,7 @@ const folderModal = document.querySelector<HTMLElement>('#folder-modal');
 const previewModal = document.querySelector<HTMLElement>('#preview-modal');
 const previewModalImage = document.querySelector<HTMLImageElement>('#preview-modal-image');
 const fileInput = document.querySelector<HTMLInputElement>('#file-input');
+const folderInput = document.querySelector<HTMLInputElement>('#folder-input');
 const dropZone = document.querySelector<HTMLElement>('.drop-zone');
 const folderName = document.querySelector<HTMLInputElement>('#folder-name');
 const pendingFiles = document.querySelector('#pending-files');
@@ -47,6 +68,7 @@ let selectedItem: StorageItem | null = null;
 let currentPath = '';
 let previewUrl: string | null = null;
 let previewRequest = 0;
+let selectedUploads: SelectedUpload[] = [];
 
 function applyTheme(theme: 'light' | 'dark'): void {
 	document.documentElement.dataset['theme'] = theme;
@@ -334,11 +356,11 @@ function openModal(modal: HTMLElement | null): void {
 	modal.hidden = false;
 }
 
-function renderSelectedFiles(files: FileList | null): void {
+function renderSelectedFiles(files: SelectedUpload[]): void {
 	if (!pendingFiles) return;
 	pendingFiles.replaceChildren();
 
-	if (!files || files.length === 0) {
+	if (files.length === 0) {
 		const empty = document.createElement('p');
 		empty.className = 'pending-files-empty';
 		empty.textContent = 'No files selected';
@@ -348,14 +370,15 @@ function renderSelectedFiles(files: FileList | null): void {
 
 	const list = document.createElement('ul');
 	list.className = 'pending-file-list';
-	for (const file of files) {
+	for (const selected of files) {
+		const file = selected.file;
 		const item = document.createElement('li');
 		item.className = 'pending-file';
 
 		const name = document.createElement('span');
 		name.className = 'pending-file-name';
-		name.textContent = file.name;
-		name.title = file.name;
+		name.textContent = selected.relativePath || file.name;
+		name.title = name.textContent;
 
 		const size = document.createElement('span');
 		size.className = 'pending-file-size';
@@ -367,12 +390,103 @@ function renderSelectedFiles(files: FileList | null): void {
 	pendingFiles.append(list);
 }
 
-function clearSelectedFiles(): void {
-	if (fileInput) fileInput.value = '';
-	renderSelectedFiles(null);
+function filesToUploads(files: FileList | null): SelectedUpload[] {
+	return [...(files ?? [])].map((file) => ({
+		file,
+		relativePath:
+			(file as File & { webkitRelativePath?: string }).webkitRelativePath ?? ''
+	}));
 }
 
-renderSelectedFiles(null);
+function updateSelectedFiles(files: SelectedUpload[], append = false): void {
+	selectedUploads = append ? [...selectedUploads, ...files] : files;
+	renderSelectedFiles(selectedUploads);
+}
+
+function readDroppedFile(entry: DroppedEntry, directoryPath: string): Promise<SelectedUpload> {
+	return new Promise((resolve, reject) => {
+		if (!entry.file) {
+			reject(new Error(`Unable to read ${entry.name}.`));
+			return;
+		}
+
+		entry.file(
+			(file) =>
+				resolve({
+					file,
+					relativePath: directoryPath
+						? `${directoryPath}/${file.name}`
+						: ''
+				}),
+			reject
+		);
+	});
+}
+
+async function readDroppedDirectory(
+	entry: DroppedEntry,
+	directoryPath: string
+): Promise<SelectedUpload[]> {
+	const reader = entry.createReader?.();
+	if (!reader) return [];
+
+	const files: SelectedUpload[] = [];
+	while (true) {
+		const entries = await new Promise<DroppedEntry[]>((resolve, reject) => {
+			reader.readEntries(resolve, reject);
+		});
+		if (entries.length === 0) break;
+
+		for (const child of entries) {
+			if (child.isDirectory) {
+				files.push(
+					...(await readDroppedDirectory(
+						child,
+						directoryPath
+							? `${directoryPath}/${child.name}`
+							: child.name
+					))
+				);
+			} else if (child.isFile) {
+				files.push(await readDroppedFile(child, directoryPath));
+			}
+		}
+	}
+
+	return files;
+}
+
+async function readDroppedItems(dataTransfer: DataTransfer): Promise<SelectedUpload[]> {
+	const items = [...dataTransfer.items] as unknown as Array<{
+		webkitGetAsEntry?: () => DroppedEntry | null;
+	}>;
+	const entries = items
+		.map((item) => item.webkitGetAsEntry?.() ?? null)
+		.filter((entry): entry is DroppedEntry => entry !== null);
+
+	if (entries.length === 0) {
+		return [...dataTransfer.files].map((file) => ({ file, relativePath: '' }));
+	}
+
+	const files: SelectedUpload[] = [];
+	for (const entry of entries) {
+		if (entry.isDirectory) {
+			files.push(...(await readDroppedDirectory(entry, entry.name)));
+		} else if (entry.isFile) {
+			files.push(await readDroppedFile(entry, ''));
+		}
+	}
+	return files;
+}
+
+function clearSelectedFiles(): void {
+	if (fileInput) fileInput.value = '';
+	if (folderInput) folderInput.value = '';
+	selectedUploads = [];
+	renderSelectedFiles(selectedUploads);
+}
+
+renderSelectedFiles(selectedUploads);
 
 function closeModal(): void {
 	if (!modalBackdrop) return;
@@ -394,16 +508,22 @@ function openImagePreview(): void {
 }
 
 async function uploadFiles(): Promise<void> {
-	const files = fileInput?.files;
-	if (!files || files.length === 0) {
+	if (selectedUploads.length === 0) {
 		showToast('Choose at least one file.');
 		return;
 	}
 
-	for (const file of files) {
+	for (const selected of selectedUploads) {
+		const file = selected.file;
+		const relativeParts = selected.relativePath
+			.replaceAll('\\', '/')
+			.split('/')
+			.filter(Boolean);
+		relativeParts.pop();
+		const directoryPath = [currentPath, ...relativeParts].filter(Boolean).join('/');
 		const formData = new FormData();
 		formData.append('file', file, file.name);
-		const query = currentPath ? `?path=${encodeURIComponent(currentPath)}` : '';
+		const query = directoryPath ? `?path=${encodeURIComponent(directoryPath)}` : '';
 		const response = await fetch(`/api/files${query}`, {
 			method: 'POST',
 			body: formData
@@ -523,7 +643,10 @@ detailsResizer?.addEventListener('pointerdown', (event) => {
 
 filter?.addEventListener('input', renderItems);
 fileInput?.addEventListener('change', () => {
-	renderSelectedFiles(fileInput.files);
+	updateSelectedFiles(filesToUploads(fileInput.files));
+});
+folderInput?.addEventListener('change', () => {
+	updateSelectedFiles(filesToUploads(folderInput.files), true);
 });
 
 let dragDepth = 0;
@@ -550,14 +673,14 @@ dropZone?.addEventListener('drop', (event) => {
 	dragDepth = 0;
 	dropZone.classList.remove('drag-over');
 
-	const droppedFiles = [...(event.dataTransfer?.files ?? [])];
-	if (!fileInput || droppedFiles.length === 0) return;
+	const dataTransfer = event.dataTransfer;
+	if (!dataTransfer) return;
 
-	const transfer = new DataTransfer();
-	for (const file of fileInput.files ?? []) transfer.items.add(file);
-	for (const file of droppedFiles) transfer.items.add(file);
-	fileInput.files = transfer.files;
-	renderSelectedFiles(fileInput.files);
+	void readDroppedItems(dataTransfer)
+		.then((files) => {
+			if (files.length > 0) updateSelectedFiles(files, true);
+		})
+		.catch(() => showToast('Unable to read the dropped folder.'));
 });
 
 previewImage?.addEventListener('click', openImagePreview);

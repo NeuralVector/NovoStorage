@@ -257,9 +257,23 @@
 				<p>Choose files below to upload them to your storage.</p>
 				<label class="drop-zone" for="file-input"
 					><b>↑</b><strong>Choose files</strong
-					><span>or drop them here</span></label
+					><span>or drop files here</span></label
 				>
 				<input id="file-input" type="file" multiple hidden />
+				<input
+					id="folder-input"
+					type="file"
+					webkitdirectory
+					multiple
+					hidden
+				/>
+				<div class="folder-picker-row">
+					<label class="folder-picker" for="folder-input"
+						>Choose a folder</label
+					>
+					<span>Upload the folder's contents</span>
+				</div>
+				<br />
 				<div
 					id="pending-files"
 					class="pending-files"
