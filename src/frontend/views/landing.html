@@ -9,72 +9,176 @@
 		/>
 		<meta
 			name="keywords"
-			content="NovoStorage, cloud storage, file storage, online storage, cloud drive, file sharing, file sync, backup, cloud backup, secure storage, encrypted storage, object storage, document storage, media storage, file hosting, storage platform, online files, cloud files, cloud services, web storage, data storage, storage solution"
+			content="NovoStorage, cloud storage, file storage, online storage, cloud drive, file sharing, file sync, backup, cloud backup, secure storage, encrypted storage, document storage, media storage, file hosting, storage platform"
 		/>
 		<meta name="author" content="NovoStorage" />
 		<meta name="robots" content="index, follow, max-image-preview:large" />
 
-		<link rel="icon" href="/assets/favicon.svg" />
+		<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
+		<link rel="stylesheet" href="/assets/css/components.css" />
+		<link rel="stylesheet" href="/assets/css/index.css" />
 		<title>NovoStorage - A secure Cloud Data Storage platform</title>
 	</head>
 
 	<body>
-		<button onclick="document.getElementById('loginDialog').showModal()">Login</button
-		><br />
-		<button onclick="document.getElementById('signupDialog').showModal()">
-			Sign Up</button
-		><br />
+		<header class="header">
+			<div class="header-content">
+				<a href="/" class="logo">
+					<div class="logo-box">N</div>
+					<div>
+						<span class="novo">Novo</span
+						><span class="storage">Storage</span>
+					</div>
+				</a>
 
-		<dialog id="loginDialog">
-			<h2>Login</h2>
+				<nav class="nav">
+					<a href="#features">Features</a>
+					<a href="#security">Security</a>
+					<a href="#pricing">Pricing</a>
+				</nav>
 
-			<form method="post" action="/login">
-				<label>
-					Username:
-					<input type="text" name="username" required />
-				</label>
-				<br />
+				<div class="header-buttons">
+					<a href="/login" class="btn small-btn secondary-btn"
+						>Sign In</a
+					>
+					<a href="/signup" class="btn small-btn primary-btn"
+						>Get Started</a
+					>
+				</div>
+			</div>
+		</header>
 
-				<label>
-					Password:
-					<input type="password" name="password" required />
-				</label>
-				<br />
+		<main>
+			<section class="hero">
+				<div class="hero-text">
+					<h1>
+						Simple cloud storage for your
+						<span>important files</span>.
+					</h1>
+					<p>
+						NovoStorage helps you upload, organize, and share
+						your files from one secure place. Access your
+						documents, photos, and projects whenever you need
+						them.
+					</p>
+					<div class="buttons">
+						<a href="/signup" class="btn primary-btn"
+							>Get Started</a
+						>
+						<a href="#features" class="btn secondary-btn"
+							>Learn More</a
+						>
+					</div>
+				</div>
+			</section>
 
-				<button type="submit">Login</button>
-				<button type="button" onclick="this.closest('dialog').close()">
-					Close
-				</button>
-			</form>
-		</dialog>
+			<section class="section" id="features">
+				<h2>What NovoStorage Offers</h2>
+				<p class="section-intro">
+					NovoStorage gives users the basic tools they need to manage
+					files online in a clean and simple way.
+				</p>
+				<div class="cards">
+					<div class="card">
+						<h3>Secure Storage</h3>
+						<p>
+							Save your files in one place and keep them
+							protected from accidental loss.
+						</p>
+					</div>
+					<div class="card" id="security">
+						<h3>Easy Sharing</h3>
+						<p>
+							Share documents, photos, and folders with
+							others using simple access options.
+						</p>
+					</div>
+					<div class="card">
+						<h3>Access Anywhere</h3>
+						<p>
+							Open your files from a laptop, tablet, or
+							phone whenever you need them.
+						</p>
+					</div>
+				</div>
+			</section>
 
-		<dialog id="signupDialog">
-			<h2>Sign Up</h2>
+			<section class="section" id="pricing">
+				<h2>How It Works</h2>
+				<p class="section-intro">
+					The idea behind NovoStorage is simple: upload files,
+					organize them, and use them when required.
+				</p>
+				<div class="steps">
+					<div class="step">
+						<div class="step-number">1</div>
+						<h3>Upload</h3>
+						<p>
+							Select your files and add them to your cloud
+							storage.
+						</p>
+					</div>
+					<div class="step">
+						<div class="step-number">2</div>
+						<h3>Organize</h3>
+						<p>
+							Keep your files sorted using folders and
+							clear file names.
+						</p>
+					</div>
+					<div class="step">
+						<div class="step-number">3</div>
+						<h3>Share</h3>
+						<p>
+							Share selected files or folders with the
+							people who need them.
+						</p>
+					</div>
+				</div>
+			</section>
 
-			<form method="post" action="/signup">
-				<label>
-					Username:
-					<input type="text" name="username" required />
-				</label>
-				<br />
+			<section class="cta">
+				<h2>Ready to manage your files better?</h2>
+				<p>
+					Start using NovoStorage to keep your important files
+					organized and easy to access.
+				</p>
+				<a href="/signup" class="btn primary-btn">Get Started</a>
+			</section>
+		</main>
 
-				<label>
-					Email:
-					<input type="email" name="email" required />
-				</label>
-				<br />
-
-				<label>
-					Password:
-					<input type="password" name="password" required />
-				</label>
-				<br />
-
-				<button type="submit">Sign Up</button>
-				<button type="button" onclick="this.closest('dialog').close()">
-					Close
-				</button>
-			</form>
-		</dialog>
+		<footer class="footer">
+			<div class="footer-content">
+				<div>
+					<h3>NovoStorage</h3>
+					<p>
+						A simple cloud storage solution for saving,
+						organizing, and sharing files securely.
+					</p>
+				</div>
+				<div class="footer-links">
+					<div>
+						<h4>Product</h4>
+						<a href="#features">Features</a>
+						<a href="#security">Security</a>
+						<a href="#pricing">Pricing</a>
+					</div>
+					<div>
+						<h4>Company</h4>
+						<a href="#">About</a>
+						<a href="#">Contact</a>
+						<a href="#">Support</a>
+					</div>
+					<div>
+						<h4>Legal</h4>
+						<a href="#">Privacy Policy</a>
+						<a href="#">Terms of Service</a>
+					</div>
+				</div>
+			</div>
+			<div class="footer-bottom">
+				<p>© 2026 NovoStorage. All rights reserved.</p>
+			</div>
+		</footer>
 	</body>
 </html>
