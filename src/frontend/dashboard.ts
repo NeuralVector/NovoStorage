@@ -51,6 +51,10 @@ const folderModal = document.querySelector<HTMLElement>('#folder-modal');
 const previewModal = document.querySelector<HTMLElement>('#preview-modal');
 const previewModalImage = document.querySelector<HTMLImageElement>('#preview-modal-image');
 const previewModalVideo = document.querySelector<HTMLVideoElement>('#preview-modal-video');
+const contentsModal = document.querySelector<HTMLElement>('#contents-modal');
+const contentsTitle = document.querySelector<HTMLElement>('#contents-title');
+const contentsStatus = document.querySelector<HTMLElement>('#contents-status');
+const contentsText = document.querySelector<HTMLElement>('#contents-text');
 const fileInput = document.querySelector<HTMLInputElement>('#file-input');
 const folderInput = document.querySelector<HTMLInputElement>('#folder-input');
 const dropZone = document.querySelector<HTMLElement>('.drop-zone');
@@ -85,6 +89,7 @@ const detailMeta = document.querySelector('#detail-meta');
 const detailLocation = document.querySelector('#detail-location');
 const detailModified = document.querySelector('#detail-modified');
 const selectedDownload = document.querySelector<HTMLButtonElement>('[data-action="download"]');
+const selectedContents = document.querySelector<HTMLButtonElement>('[data-action="view-contents"]');
 const selectedShare = document.querySelector<HTMLButtonElement>('[data-action="share"]');
 const selectedDelete = document.querySelector<HTMLButtonElement>('[data-action="delete"]');
 
@@ -94,6 +99,7 @@ let selectedPaths = new Set<string>();
 let currentPath = '';
 let previewUrl: string | null = null;
 let previewRequest = 0;
+let contentsRequest = 0;
 let selectedUploads: SelectedUpload[] = [];
 let isUploading = false;
 
@@ -209,6 +215,66 @@ function download(item: StorageItem): void {
 	document.body.append(link);
 	link.click();
 	link.remove();
+}
+
+async function viewContents(item: StorageItem): Promise<void> {
+	if (!contentsModal || !contentsTitle || !contentsStatus || !contentsText || !modalBackdrop)
+		return;
+	const request = ++contentsRequest;
+	contentsTitle.textContent = item.name;
+	contentsStatus.textContent = 'Loading…';
+	contentsText.replaceChildren();
+	modalBackdrop.hidden = false;
+	contentsModal.hidden = false;
+
+	try {
+		const query = new URLSearchParams({ path: item.path });
+		const response = await fetch(`/api/files/download?${query.toString()}`);
+		if (response.status === 401) {
+			window.location.assign('/login');
+			return;
+		}
+		if (!response.ok) throw new Error('Unable to read file contents.');
+
+		const contentType = response.headers.get('content-type');
+		const charset = contentType?.match(/charset=([^;]+)/i)?.[1]?.trim();
+		let decoder: TextDecoder;
+		try {
+			decoder = new TextDecoder(charset ?? 'utf-8');
+		} catch {
+			decoder = new TextDecoder('utf-8');
+		}
+		const reader = response.body?.getReader();
+		if (!reader) {
+			contentsText.textContent = await response.text();
+		} else {
+			while (true) {
+				const result = await reader.read();
+				if (request !== contentsRequest) {
+					await reader.cancel();
+					return;
+				}
+				if (result.value) {
+					contentsText.append(
+						document.createTextNode(
+							decoder.decode(result.value, {
+								stream: !result.done
+							})
+						)
+					);
+				}
+				if (result.done) break;
+			}
+			contentsText.append(document.createTextNode(decoder.decode()));
+		}
+		if (request === contentsRequest) {
+			contentsStatus.textContent = '';
+		}
+	} catch (error) {
+		if (request !== contentsRequest) return;
+		contentsStatus.textContent =
+			error instanceof Error ? error.message : 'Unable to read file contents.';
+	}
 }
 
 async function share(item: StorageItem): Promise<void> {
@@ -485,6 +551,7 @@ function selectItem(item: StorageItem): void {
 	if (detailLocation) detailLocation.textContent = item.path;
 	if (detailModified) detailModified.textContent = formatLastModified(item.lastModified);
 	if (selectedDownload) selectedDownload.hidden = item.type !== 'file';
+	if (selectedContents) selectedContents.hidden = item.type !== 'file';
 	if (selectedShare) selectedShare.hidden = item.type !== 'file';
 	if (selectedDelete) selectedDelete.hidden = false;
 	void loadImagePreview(item);
@@ -806,6 +873,9 @@ function closeModal(): void {
 	if (uploadModal) uploadModal.hidden = true;
 	if (folderModal) folderModal.hidden = true;
 	if (previewModal) previewModal.hidden = true;
+	contentsRequest += 1;
+	if (contentsModal) contentsModal.hidden = true;
+	if (contentsText) contentsText.replaceChildren();
 	if (previewModalImage) {
 		previewModalImage.hidden = true;
 		previewModalImage.removeAttribute('src');
@@ -989,6 +1059,9 @@ document.addEventListener('click', (event) => {
 			break;
 		case 'download':
 			if (selectedItem?.type === 'file') download(selectedItem);
+			break;
+		case 'view-contents':
+			if (selectedItem?.type === 'file') void viewContents(selectedItem);
 			break;
 		case 'share':
 			if (selectedItem?.type === 'file') {

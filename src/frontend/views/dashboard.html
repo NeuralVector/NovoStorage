@@ -298,6 +298,13 @@
 							<strong>Download</strong>
 						</button>
 						<button
+							class="view-contents"
+							type="button"
+							data-action="view-contents"
+						>
+							<strong>View contents</strong>
+						</button>
+						<button
 							class="share"
 							type="button"
 							data-action="share"
@@ -470,6 +477,27 @@
 					playsinline
 					hidden
 				></video>
+			</section>
+			<section
+				id="contents-modal"
+				class="modal contents-modal"
+				hidden
+				aria-modal="true"
+				role="dialog"
+				aria-labelledby="contents-title"
+			>
+				<button
+					class="modal-close"
+					type="button"
+					data-action="close-modal"
+					aria-label="Close file contents"
+				>
+					×
+				</button>
+				<p class="modal-kicker">FILE CONTENTS</p>
+				<h2 id="contents-title">—</h2>
+				<p id="contents-status" class="contents-status">Loading…</p>
+				<pre id="contents-text" class="contents-text"></pre>
 			</section>
 		</div>
 		<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>

@@ -423,6 +423,11 @@ main > header {
 	border: 0;
 	background: none;
 }
+.view-contents {
+	color: #475467;
+	border: 0;
+	background: none;
+}
 .share {
 	color: #15803d;
 	border: 0;
@@ -647,6 +652,33 @@ dd {
 	object-fit: contain;
 	background: #000;
 }
+.contents-modal {
+	width: min(900px, calc(100vw - 32px));
+	max-height: min(80vh, 700px);
+	overflow: hidden;
+}
+.contents-status {
+	margin: 0 0 12px;
+	color: #667085;
+	font-size: 13px;
+}
+.contents-text {
+	max-height: min(60vh, 520px);
+	margin: 0;
+	padding: 16px;
+	overflow: auto;
+	border: 1px solid #d9e0ea;
+	border-radius: 8px;
+	background: #f7f9fc;
+	font:
+		13px/1.55 ui-monospace,
+		SFMono-Regular,
+		Menlo,
+		Consolas,
+		monospace;
+	white-space: pre;
+	word-break: normal;
+}
 .modal-close {
 	position: absolute;
 	top: 12px;
@@ -824,6 +856,17 @@ html[data-theme='dark'] .delete {
 }
 html[data-theme='dark'] .share {
 	color: #86efac;
+}
+html[data-theme='dark'] .view-contents {
+	color: #d1d5db;
+}
+html[data-theme='dark'] .contents-status {
+	color: #9ca3af;
+}
+html[data-theme='dark'] .contents-text {
+	border-color: #374151;
+	background: #111827;
+	color: #e5e7eb;
 }
 html[data-theme='dark'] .theme-toggle:hover,
 html[data-theme='dark'] .sign-out:hover {
