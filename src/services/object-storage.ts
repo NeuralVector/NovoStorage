@@ -8,9 +8,16 @@ export interface StorageObject {
 	lastModified?: Date;
 }
 
+export interface DownloadedObject {
+	stream: Readable;
+	contentLength?: number;
+	contentType?: string;
+	contentRange?: string;
+}
+
 export interface ObjectStorage {
 	upload(key: string, body: Buffer | Readable, contentType?: string): Promise<void>;
 	createDirectory(key: string): Promise<void>;
 	list(userId: string): Promise<StorageObject[]>;
-	download(key: string): Promise<Readable>;
+	download(key: string, range?: string): Promise<DownloadedObject>;
 }

@@ -38,6 +38,7 @@ const uploadModal = document.querySelector<HTMLElement>('#upload-modal');
 const folderModal = document.querySelector<HTMLElement>('#folder-modal');
 const previewModal = document.querySelector<HTMLElement>('#preview-modal');
 const previewModalImage = document.querySelector<HTMLImageElement>('#preview-modal-image');
+const previewModalVideo = document.querySelector<HTMLVideoElement>('#preview-modal-video');
 const fileInput = document.querySelector<HTMLInputElement>('#file-input');
 const folderInput = document.querySelector<HTMLInputElement>('#folder-input');
 const dropZone = document.querySelector<HTMLElement>('.drop-zone');
@@ -60,6 +61,8 @@ const appShell = document.querySelector<HTMLElement>('.app-shell');
 const preview = document.querySelector<HTMLElement>('#preview');
 const previewType = document.querySelector<HTMLElement>('#preview-type');
 const previewImage = document.querySelector<HTMLImageElement>('#preview-image');
+const previewVideo = document.querySelector<HTMLVideoElement>('#preview-video');
+const previewPlay = document.querySelector<HTMLButtonElement>('#preview-play');
 const detailsResizer = document.createElement('div');
 detailsResizer.className = 'details-resizer';
 detailsResizer.setAttribute('aria-label', 'Resize details panel');
@@ -177,12 +180,29 @@ function imageMimeType(name: string): string | null {
 	return extension ? (mimeTypes[extension] ?? null) : null;
 }
 
+function videoMimeType(name: string): string | null {
+	const extension = name.split('.').pop()?.toLowerCase();
+	const mimeTypes: Record<string, string> = {
+		m4v: 'video/mp4',
+		mov: 'video/quicktime',
+		mp4: 'video/mp4',
+		ogv: 'video/ogg',
+		webm: 'video/webm'
+	};
+	return extension ? (mimeTypes[extension] ?? null) : null;
+}
+
+function videoStreamUrl(item: StorageItem): string {
+	const query = new URLSearchParams({ path: item.path });
+	return `/api/files/stream?${query.toString()}`;
+}
+
 function resetPreview(): void {
 	previewRequest += 1;
 	if (previewUrl) URL.revokeObjectURL(previewUrl);
 	previewUrl = null;
 	if (preview) preview.hidden = true;
-	preview?.classList.remove('has-image');
+	preview?.classList.remove('has-image', 'has-video');
 	if (previewType) {
 		previewType.hidden = false;
 		previewType.textContent = 'FILE';
@@ -191,12 +211,20 @@ function resetPreview(): void {
 		previewImage.hidden = true;
 		previewImage.removeAttribute('src');
 	}
+	if (previewVideo) {
+		previewVideo.pause();
+		previewVideo.removeAttribute('src');
+		previewVideo.load();
+		previewVideo.hidden = true;
+	}
+	if (previewPlay) previewPlay.hidden = true;
 }
 
 async function loadImagePreview(item: StorageItem): Promise<void> {
 	resetPreview();
 	const mimeType = imageMimeType(item.name);
-	if (item.type !== 'file' || !mimeType || !previewImage) return;
+	const videoType = videoMimeType(item.name);
+	if (item.type !== 'file' || (!mimeType && !videoType)) return;
 
 	const request = previewRequest;
 	if (preview) preview.hidden = false;
@@ -204,6 +232,26 @@ async function loadImagePreview(item: StorageItem): Promise<void> {
 		previewType.hidden = false;
 		previewType.textContent = 'Loading preview…';
 	}
+
+	if (videoType && previewVideo) {
+		previewVideo.src = videoStreamUrl(item);
+		previewVideo.hidden = false;
+		previewVideo.onloadeddata = () => {
+			if (request !== previewRequest) return;
+			preview?.classList.add('has-video');
+			if (previewType) previewType.hidden = true;
+			if (previewPlay) previewPlay.hidden = false;
+		};
+		previewVideo.onerror = () => {
+			if (request === previewRequest && previewType) {
+				previewType.textContent = 'Preview unavailable';
+			}
+		};
+		previewVideo.load();
+		return;
+	}
+
+	if (!mimeType || !previewImage) return;
 
 	try {
 		const query = new URLSearchParams({ path: item.path });
@@ -532,7 +580,16 @@ function closeModal(): void {
 	if (uploadModal) uploadModal.hidden = true;
 	if (folderModal) folderModal.hidden = true;
 	if (previewModal) previewModal.hidden = true;
-	if (previewModalImage) previewModalImage.removeAttribute('src');
+	if (previewModalImage) {
+		previewModalImage.hidden = true;
+		previewModalImage.removeAttribute('src');
+	}
+	if (previewModalVideo) {
+		previewModalVideo.pause();
+		previewModalVideo.removeAttribute('src');
+		previewModalVideo.load();
+		previewModalVideo.hidden = true;
+	}
 	if (uploadWasOpen) clearSelectedFiles();
 }
 
@@ -540,8 +597,27 @@ function openImagePreview(): void {
 	if (!previewImage?.src || !previewModal || !previewModalImage || !modalBackdrop) return;
 	previewModalImage.src = previewImage.src;
 	previewModalImage.alt = previewImage.alt;
+	previewModalImage.hidden = false;
+	if (previewModalVideo) {
+		previewModalVideo.pause();
+		previewModalVideo.hidden = true;
+	}
 	modalBackdrop.hidden = false;
 	previewModal.hidden = false;
+}
+
+function openVideoPreview(): void {
+	if (!previewVideo?.src || !previewModal || !previewModalVideo || !modalBackdrop) return;
+	if (previewModalImage) {
+		previewModalImage.hidden = true;
+		previewModalImage.removeAttribute('src');
+	}
+	previewModalVideo.src = previewVideo.src;
+	previewModalVideo.hidden = false;
+	modalBackdrop.hidden = false;
+	previewModal.hidden = false;
+	previewModalVideo.load();
+	void previewModalVideo.play().catch(() => undefined);
 }
 
 async function uploadFiles(): Promise<void> {
@@ -735,6 +811,8 @@ dropZone?.addEventListener('drop', (event) => {
 });
 
 previewImage?.addEventListener('click', openImagePreview);
+previewVideo?.addEventListener('click', openVideoPreview);
+previewPlay?.addEventListener('click', openVideoPreview);
 
 for (const button of document.querySelectorAll<HTMLButtonElement>('[data-view]')) {
 	button.addEventListener('click', () => {

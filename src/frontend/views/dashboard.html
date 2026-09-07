@@ -203,6 +203,25 @@
 							alt=""
 							hidden
 						/>
+						<video
+							id="preview-video"
+							class="preview-video"
+							muted
+							playsinline
+							preload="auto"
+							hidden
+						></video>
+						<button
+							id="preview-play"
+							class="preview-play"
+							type="button"
+							aria-label="Play video"
+							hidden
+						>
+							<svg viewBox="0 0 24 24" aria-hidden="true">
+								<path d="M8 5v14l11-7Z" />
+							</svg>
+						</button>
 					</div>
 					<section>
 						<h2 id="detail-name">—</h2>
@@ -365,6 +384,13 @@
 					×
 				</button>
 				<img id="preview-modal-image" class="preview-modal-image" alt="" />
+				<video
+					id="preview-modal-video"
+					class="preview-modal-video"
+					controls
+					playsinline
+					hidden
+				></video>
 			</section>
 		</div>
 		<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>

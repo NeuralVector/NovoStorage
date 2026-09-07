@@ -10,7 +10,7 @@ import { Upload } from '@aws-sdk/lib-storage';
 import { Inject, Injectable } from '@nestjs/common';
 
 import config from '#config';
-import type { ObjectStorage, StorageObject } from '#services/object-storage.ts';
+import type { DownloadedObject, ObjectStorage, StorageObject } from '#services/object-storage.ts';
 
 export const s3ClientProvider = {
 	provide: S3Client,
@@ -95,11 +95,12 @@ export class S3ObjectStorage implements ObjectStorage {
 		return objects;
 	}
 
-	async download(key: string): Promise<Readable> {
+	async download(key: string, range?: string): Promise<DownloadedObject> {
 		const result = await this.client.send(
 			new GetObjectCommand({
 				Bucket: config.get('storage.s3.bucket'),
-				Key: key
+				Key: key,
+				...(range ? { Range: range } : {})
 			})
 		);
 
@@ -107,6 +108,13 @@ export class S3ObjectStorage implements ObjectStorage {
 			throw new Error(`S3 object has no body: ${key}`);
 		}
 
-		return Readable.from(result.Body as AsyncIterable<Uint8Array>);
+		return {
+			stream: Readable.from(result.Body as AsyncIterable<Uint8Array>),
+			...(result.ContentLength !== undefined
+				? { contentLength: result.ContentLength }
+				: {}),
+			...(result.ContentType ? { contentType: result.ContentType } : {}),
+			...(result.ContentRange ? { contentRange: result.ContentRange } : {})
+		};
 	}
 }

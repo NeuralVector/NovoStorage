@@ -41,6 +41,26 @@ function validateRelativePath(value: string | undefined): string {
 	return path;
 }
 
+function validateFilePath(value: string | undefined): string {
+	const path = value?.replaceAll('\\', '/');
+	if (!path || path.startsWith('/') || path.split('/').some((part) => part === '..')) {
+		throw new BadRequestException('A valid file path is required.');
+	}
+	return path;
+}
+
+function videoContentType(fileName: string): string | null {
+	const extension = fileName.split('.').pop()?.toLowerCase();
+	const types: Record<string, string> = {
+		m4v: 'video/mp4',
+		mov: 'video/quicktime',
+		mp4: 'video/mp4',
+		ogv: 'video/ogg',
+		webm: 'video/webm'
+	};
+	return extension ? (types[extension] ?? null) : null;
+}
+
 function splitFileName(fileName: string): { base: string; extension: string } {
 	const extensionIndex = fileName.lastIndexOf('.');
 	if (extensionIndex <= 0) return { base: fileName, extension: '' };
@@ -135,26 +155,47 @@ export class FilesController {
 		@Res() reply: FastifyReply
 	): Promise<void> {
 		const user = await this.auth.requireUser(request);
-		const normalizedPath = filePath?.replaceAll('\\', '/');
-
-		if (
-			!normalizedPath ||
-			normalizedPath.startsWith('/') ||
-			normalizedPath.split('/').some((part) => part === '..')
-		) {
-			throw new BadRequestException('A valid file path is required.');
-		}
+		const normalizedPath = validateFilePath(filePath);
 
 		const key = `${user.userId}/${normalizedPath}`;
 		const fileName = normalizedPath.split('/').pop() ?? 'download';
-		const stream = await this.storage.download(key);
+		const object = await this.storage.download(key);
 
 		reply.header('Content-Type', 'application/octet-stream');
 		reply.header(
 			'Content-Disposition',
 			`attachment; filename="${encodeURIComponent(fileName)}"`
 		);
-		reply.send(stream);
+		reply.send(object.stream);
+	}
+
+	@Get('files/stream')
+	async streamFile(
+		@Query('path') filePath: string,
+		@Req() request: FastifyRequest,
+		@Res() reply: FastifyReply
+	): Promise<void> {
+		const user = await this.auth.requireUser(request);
+		const normalizedPath = validateFilePath(filePath);
+		const key = `${user.userId}/${normalizedPath}`;
+		const fileName = normalizedPath.split('/').pop() ?? 'video';
+		const object = await this.storage.download(key, request.headers.range);
+
+		reply.header(
+			'Content-Type',
+			object.contentType ??
+				videoContentType(fileName) ??
+				'application/octet-stream'
+		);
+		reply.header('Accept-Ranges', 'bytes');
+		reply.header('Content-Disposition', 'inline');
+		if (object.contentLength !== undefined) {
+			reply.header('Content-Length', object.contentLength);
+		}
+		if (object.contentRange) {
+			reply.code(206).header('Content-Range', object.contentRange);
+		}
+		reply.send(object.stream);
 	}
 
 	@Post('files')
