@@ -8,7 +8,6 @@ interface StorageItem {
 	lastModified: string | null;
 	owner: string;
 	referenceId?: string;
-	virtual?: boolean;
 }
 
 interface StorageUsage {
@@ -100,6 +99,7 @@ let storageItems: StorageItem[] = [];
 let selectedItem: StorageItem | null = null;
 let selectedPaths = new Set<string>();
 let currentPath = '';
+let currentView: 'storage' | 'shared' = 'storage';
 let previewUrl: string | null = null;
 let previewRequest = 0;
 let contentsRequest = 0;
@@ -127,7 +127,7 @@ function renderBreadcrumb(): void {
 	breadcrumb.replaceChildren();
 	const root = document.createElement('button');
 	root.type = 'button';
-	root.textContent = 'My storage';
+	root.textContent = currentView === 'shared' ? 'Shared with me' : 'My storage';
 	root.dataset['path'] = '';
 	root.addEventListener('click', () => navigateTo(''));
 	breadcrumb.append(root);
@@ -137,7 +137,7 @@ function renderBreadcrumb(): void {
 	breadcrumb.append(allFilesSeparator);
 	const allFiles = document.createElement('button');
 	allFiles.type = 'button';
-	allFiles.textContent = 'All files';
+	allFiles.textContent = currentView === 'shared' ? 'Shared files' : 'All files';
 	allFiles.dataset['path'] = '';
 	allFiles.addEventListener('click', () => navigateTo(''));
 	breadcrumb.append(allFiles);
@@ -308,6 +308,7 @@ function visibleItems(): StorageItem[] {
 	const search = filter?.value.trim().toLowerCase() ?? '';
 	const prefix = currentPath ? `${currentPath}/` : '';
 	return storageItems.filter((item) => {
+		if (currentView === 'shared' && !item.referenceId) return false;
 		if (!item.path.startsWith(prefix) || item.path === currentPath) return false;
 		const relativePath = item.path.slice(prefix.length);
 		return (
@@ -318,7 +319,7 @@ function visibleItems(): StorageItem[] {
 }
 
 function selectedStorageItems(): StorageItem[] {
-	return storageItems.filter((item) => selectedPaths.has(item.path) && !item.virtual);
+	return storageItems.filter((item) => selectedPaths.has(item.path));
 }
 
 function updateSelectionUi(items = visibleItems()): void {
@@ -328,15 +329,12 @@ function updateSelectionUi(items = visibleItems()): void {
 		selectionCount.textContent = `${selectedCount} selected`;
 	}
 	if (selectAll) {
-		const selectableItems = items.filter((item) => !item.virtual);
-		const selectedVisibleCount = selectableItems.filter((item) =>
+		const selectedVisibleCount = items.filter((item) =>
 			selectedPaths.has(item.path)
 		).length;
-		selectAll.checked =
-			selectableItems.length > 0 &&
-			selectedVisibleCount === selectableItems.length;
+		selectAll.checked = items.length > 0 && selectedVisibleCount === items.length;
 		selectAll.indeterminate =
-			selectedVisibleCount > 0 && selectedVisibleCount < selectableItems.length;
+			selectedVisibleCount > 0 && selectedVisibleCount < items.length;
 	}
 }
 
@@ -561,6 +559,8 @@ function selectItem(item: StorageItem): void {
 		detailMeta.textContent = `${item.type.toUpperCase()} · ${formatFileSize(item.size)}`;
 	}
 	if (detailLocation) detailLocation.textContent = item.path;
+	const detailOwner = document.querySelector('#detail-owner');
+	if (detailOwner) detailOwner.textContent = item.owner;
 	if (detailModified) detailModified.textContent = formatLastModified(item.lastModified);
 	if (selectedDownload) selectedDownload.hidden = item.type !== 'file';
 	if (selectedContents) selectedContents.hidden = item.type !== 'file';
@@ -583,9 +583,40 @@ function navigateTo(path: string): void {
 	renderItems();
 }
 
+function setView(view: 'storage' | 'shared'): void {
+	currentView = view;
+	for (const button of document.querySelectorAll<HTMLButtonElement>('[data-view]')) {
+		button.classList.toggle('active', button.dataset['view'] === view);
+	}
+	currentPath = '';
+	selectedItem = null;
+	clearSelection();
+	resetPreview();
+	if (detailsPanel) detailsPanel.hidden = true;
+	appShell?.classList.remove('has-details');
+	if (detailsEmpty) detailsEmpty.hidden = false;
+	if (detailsContent) detailsContent.hidden = true;
+	const pageTitle = document.querySelector<HTMLElement>('#page-title');
+	const pageDescription = document.querySelector<HTMLElement>('#page-description');
+	if (pageTitle) pageTitle.textContent = view === 'shared' ? 'Shared with me' : 'My storage';
+	if (pageDescription) {
+		pageDescription.textContent =
+			view === 'shared'
+				? 'Files shared with you by other people.'
+				: 'Upload files to start organizing your workspace.';
+	}
+	renderBreadcrumb();
+	renderItems();
+}
+
 function emptyState(): HTMLElement {
 	const empty = document.createElement('div');
 	empty.className = 'empty-state';
+	if (currentView === 'shared') {
+		empty.innerHTML =
+			'<div class="empty-icon">↗</div><h2>No shared files</h2><p>Files shared with you will appear here.</p>';
+		return empty;
+	}
 	empty.innerHTML =
 		'<div class="empty-icon">▰</div><h2>Your storage is empty</h2><p>Upload a file to get started.</p>';
 	const actions = document.createElement('div');
@@ -640,7 +671,6 @@ function renderItems(): void {
 		const checkbox = document.createElement('input');
 		checkbox.className = 'select-item';
 		checkbox.type = 'checkbox';
-		checkbox.disabled = Boolean(item.virtual);
 		checkbox.checked = selectedPaths.has(item.path);
 		checkbox.setAttribute('aria-label', `Select ${item.name}`);
 		checkbox.addEventListener('change', () => {
@@ -674,9 +704,6 @@ function renderItems(): void {
 		action.className = item.type === 'file' ? 'download' : 'delete';
 		action.type = 'button';
 		const actionName = item.type === 'file' ? 'Download' : 'Delete';
-		if (item.virtual) {
-			action.hidden = true;
-		}
 		action.setAttribute('aria-label', actionName);
 		action.title = actionName;
 		action.innerHTML =
@@ -1051,9 +1078,11 @@ document.addEventListener('click', (event) => {
 			break;
 		}
 		case 'open-upload':
+			if (currentView === 'shared') setView('storage');
 			openModal(uploadModal);
 			break;
 		case 'open-folder':
+			if (currentView === 'shared') setView('storage');
 			openModal(folderModal);
 			break;
 		case 'close-modal':
@@ -1152,7 +1181,6 @@ detailsResizer?.addEventListener('pointerdown', (event) => {
 filter?.addEventListener('input', renderItems);
 selectAll?.addEventListener('change', () => {
 	for (const item of visibleItems()) {
-		if (item.virtual) continue;
 		if (selectAll.checked) selectedPaths.add(item.path);
 		else selectedPaths.delete(item.path);
 	}
@@ -1205,11 +1233,7 @@ previewPlay?.addEventListener('click', openVideoPreview);
 
 for (const button of document.querySelectorAll<HTMLButtonElement>('[data-view]')) {
 	button.addEventListener('click', () => {
-		for (const item of document.querySelectorAll('[data-view]'))
-			item.classList.remove('active');
-		button.classList.add('active');
-		if (button.dataset['view'] !== 'storage')
-			showToast('This view is not available yet.');
+		setView(button.dataset['view'] === 'shared' ? 'shared' : 'storage');
 	});
 }
 

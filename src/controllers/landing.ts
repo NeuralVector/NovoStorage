@@ -23,8 +23,10 @@ export class LandingController {
 		);
 
 		if (hasClerkHandoff) {
-			url.pathname = '/dashboard';
-			return reply.redirect(`${url.pathname}${url.search}`, 302);
+			return reply.redirect(
+				this.requestedRedirectUrl(request) ?? this.dashboardUrl(),
+				302
+			);
 		}
 
 		if (await this.auth.getCurrentUser(request)) {
@@ -45,10 +47,7 @@ export class LandingController {
 	}
 
 	private dashboardUrl(): string {
-		const url = new URL(config.get('website.url'));
-		if (!url.port && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) {
-			url.port = String(config.get('server.port'));
-		}
+		const url = this.websiteUrl();
 		url.pathname = '/dashboard';
 		url.search = '';
 		url.hash = '';
@@ -57,20 +56,32 @@ export class LandingController {
 	}
 
 	private loginRedirectUrl(request: FastifyRequest): string {
+		return this.requestedRedirectUrl(request) ?? this.dashboardUrl();
+	}
+
+	private requestedRedirectUrl(request: FastifyRequest): string | null {
 		const requestUrl = new URL(
 			request.url,
 			`${request.protocol}://${request.hostname}`
 		);
 		const requestedUrl = requestUrl.searchParams.get('redirect_url');
-		if (requestedUrl) {
-			try {
-				const target = new URL(requestedUrl);
-				const website = new URL(config.get('website.url'));
-				if (target.origin === website.origin) return target.toString();
-			} catch {
-				// Use the dashboard when the requested redirect is invalid.
-			}
+		if (!requestedUrl) return null;
+
+		try {
+			const target = new URL(requestedUrl);
+			if (target.origin === this.websiteUrl().origin) return target.toString();
+		} catch {
+			// Use the dashboard when the requested redirect is invalid.
 		}
-		return this.dashboardUrl();
+
+		return null;
+	}
+
+	private websiteUrl(): URL {
+		const url = new URL(config.get('website.url'));
+		if (!url.port && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) {
+			url.port = String(config.get('server.port'));
+		}
+		return url;
 	}
 }

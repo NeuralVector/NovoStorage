@@ -19,7 +19,11 @@ import type { FastifyReply } from 'fastify';
 
 import { AUTH_OPERATIONS, type AuthOperations } from '#services/auth.ts';
 import { FILE_SHARING, type FileShareStore } from '#services/file-sharing.ts';
-import { OBJECT_STORAGE, type ObjectStorage } from '#services/object-storage.ts';
+import {
+	OBJECT_STORAGE,
+	type ObjectStorage,
+	type StorageObject
+} from '#services/object-storage.ts';
 import {
 	STORAGE_QUOTA,
 	StorageQuotaExceededError,
@@ -36,7 +40,6 @@ interface StorageItem {
 	lastModified: string | null;
 	owner: string;
 	referenceId?: string;
-	virtual?: boolean;
 }
 
 interface CreateDirectoryBody {
@@ -155,34 +158,44 @@ export class FilesController {
 			}
 		}
 
-		const references = (await this.references.list(user.userId)).filter((reference) =>
-			objects.some((object) => object.key === reference.objectKey)
+		const references = await this.references.list(user.userId);
+		const ownerObjects = new Map<string, Map<string, StorageObject>>();
+		const ownerIds = [...new Set(references.map((reference) => reference.ownerUserId))];
+		await Promise.all(
+			ownerIds.map(async (ownerId) => {
+				const ownerObjectMap = new Map(
+					(await this.storage.list(ownerId)).map((object) => [
+						object.key,
+						object
+					])
+				);
+				ownerObjects.set(ownerId, ownerObjectMap);
+			})
 		);
-		if (references.length > 0) {
-			const sharedRoot = 'Shared with me';
-			items.set(sharedRoot, {
-				name: sharedRoot,
-				path: sharedRoot,
-				type: 'directory',
-				size: 0,
-				lastModified: null,
-				owner: '—',
-				virtual: true
-			});
-			const usedNames = new Set<string>();
-			for (const reference of references) {
+		const availableReferences = references.flatMap((reference) => {
+			const object = ownerObjects
+				.get(reference.ownerUserId)
+				?.get(reference.objectKey);
+			return object ? [{ reference, object }] : [];
+		});
+
+		if (availableReferences.length > 0) {
+			const usedNames = new Set(items.keys());
+			for (const { reference, object } of availableReferences) {
 				const { base, extension } = splitFileName(reference.name);
 				let name = reference.name;
 				for (let suffix = 1; usedNames.has(name); suffix += 1) {
 					name = `${base} (${suffix})${extension}`;
 				}
 				usedNames.add(name);
-				items.set(`${sharedRoot}/${name}`, {
+				items.set(name, {
 					name,
-					path: `${sharedRoot}/${name}`,
+					path: name,
 					type: 'file',
-					size: 0,
-					lastModified: reference.createdAt.toISOString(),
+					size: object.size,
+					lastModified:
+						object.lastModified?.toISOString() ??
+						reference.createdAt.toISOString(),
 					owner: reference.ownerUserId,
 					referenceId: reference.id
 				});
