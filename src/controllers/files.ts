@@ -18,12 +18,14 @@ import type { FastifyRequest } from 'fastify';
 import type { FastifyReply } from 'fastify';
 
 import { AUTH_OPERATIONS, type AuthOperations } from '#services/auth.ts';
+import { FILE_SHARING, type FileShareStore } from '#services/file-sharing.ts';
 import { OBJECT_STORAGE, type ObjectStorage } from '#services/object-storage.ts';
 import {
 	STORAGE_QUOTA,
 	StorageQuotaExceededError,
 	type StorageQuotaStore
 } from '#services/storage-quota.ts';
+import { validateFilePath } from '#utils/storage-path.ts';
 
 interface StorageItem {
 	name: string;
@@ -47,14 +49,6 @@ function validateRelativePath(value: string | undefined): string {
 	if (!path) return '';
 	if (path.split('/').some((part) => !part || part === '.' || part === '..')) {
 		throw new BadRequestException('A valid directory path is required.');
-	}
-	return path;
-}
-
-function validateFilePath(value: string | undefined): string {
-	const path = value?.replaceAll('\\', '/');
-	if (!path || path.startsWith('/') || path.split('/').some((part) => part === '..')) {
-		throw new BadRequestException('A valid file path is required.');
 	}
 	return path;
 }
@@ -114,7 +108,8 @@ export class FilesController {
 	constructor(
 		@Inject(AUTH_OPERATIONS) private readonly auth: AuthOperations,
 		@Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
-		@Inject(STORAGE_QUOTA) private readonly quota: StorageQuotaStore
+		@Inject(STORAGE_QUOTA) private readonly quota: StorageQuotaStore,
+		@Inject(FILE_SHARING) private readonly shares: FileShareStore
 	) {}
 
 	@Get('files')
@@ -206,6 +201,7 @@ export class FilesController {
 		if (releasedBytes > 0) {
 			await this.quota.release(user.userId, releasedBytes);
 		}
+		await this.shares.revokeForPath(user.userId, normalizedPath);
 
 		return { deleted: matchingObjects.length };
 	}

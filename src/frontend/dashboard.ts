@@ -85,6 +85,7 @@ const detailMeta = document.querySelector('#detail-meta');
 const detailLocation = document.querySelector('#detail-location');
 const detailModified = document.querySelector('#detail-modified');
 const selectedDownload = document.querySelector<HTMLButtonElement>('[data-action="download"]');
+const selectedShare = document.querySelector<HTMLButtonElement>('[data-action="share"]');
 const selectedDelete = document.querySelector<HTMLButtonElement>('[data-action="delete"]');
 
 let storageItems: StorageItem[] = [];
@@ -208,6 +209,28 @@ function download(item: StorageItem): void {
 	document.body.append(link);
 	link.click();
 	link.remove();
+}
+
+async function share(item: StorageItem): Promise<void> {
+	const response = await fetch('/api/shares', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ path: item.path })
+	});
+	if (response.status === 401) {
+		window.location.assign('/login');
+		return;
+	}
+	if (!response.ok) throw new Error('Unable to create share link.');
+
+	const body = (await response.json()) as { url?: string };
+	if (!body.url) throw new Error('The share link was not returned.');
+	try {
+		await navigator.clipboard.writeText(body.url);
+		showToast('Share link copied.');
+	} catch {
+		window.prompt('Copy this share link:', body.url);
+	}
 }
 
 function visibleItems(): StorageItem[] {
@@ -462,6 +485,7 @@ function selectItem(item: StorageItem): void {
 	if (detailLocation) detailLocation.textContent = item.path;
 	if (detailModified) detailModified.textContent = formatLastModified(item.lastModified);
 	if (selectedDownload) selectedDownload.hidden = item.type !== 'file';
+	if (selectedShare) selectedShare.hidden = item.type !== 'file';
 	if (selectedDelete) selectedDelete.hidden = false;
 	void loadImagePreview(item);
 	for (const row of document.querySelectorAll<HTMLElement>('.file-row')) {
@@ -965,6 +989,17 @@ document.addEventListener('click', (event) => {
 			break;
 		case 'download':
 			if (selectedItem?.type === 'file') download(selectedItem);
+			break;
+		case 'share':
+			if (selectedItem?.type === 'file') {
+				void share(selectedItem).catch((error: unknown) =>
+					showToast(
+						error instanceof Error
+							? error.message
+							: 'Unable to create share link.'
+					)
+				);
+			}
 			break;
 		case 'download-selected':
 			downloadSelected();

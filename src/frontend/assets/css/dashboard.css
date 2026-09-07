@@ -423,6 +423,11 @@ main > header {
 	border: 0;
 	background: none;
 }
+.share {
+	color: #15803d;
+	border: 0;
+	background: none;
+}
 .delete {
 	color: #dc2626;
 	border: 0;
@@ -816,6 +821,9 @@ html[data-theme='dark'] .secondary {
 }
 html[data-theme='dark'] .delete {
 	color: #fca5a5;
+}
+html[data-theme='dark'] .share {
+	color: #86efac;
 }
 html[data-theme='dark'] .theme-toggle:hover,
 html[data-theme='dark'] .sign-out:hover {
