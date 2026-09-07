@@ -409,6 +409,11 @@ main > header {
 	border: 0;
 	background: none;
 }
+.delete {
+	color: #dc2626;
+	border: 0;
+	background: none;
+}
 .empty-state {
 	padding: 70px 20px;
 	text-align: center;
@@ -774,6 +779,9 @@ html[data-theme='dark'] .details-head button,
 html[data-theme='dark'] .secondary {
 	color: #fff !important;
 }
+html[data-theme='dark'] .delete {
+	color: #fca5a5;
+}
 html[data-theme='dark'] .theme-toggle:hover,
 html[data-theme='dark'] .sign-out:hover {
 	color: #93c5fd;
@@ -930,7 +938,7 @@ html[data-theme='dark'] .preview {
 		grid-template-columns: 1fr auto;
 	}
 	.file-row > span:not(.file-name),
-	.file-row > button:not(.download) {
+	.file-row > button:not(.download):not(.delete) {
 		display: none;
 	}
 }

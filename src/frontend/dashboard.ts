@@ -82,6 +82,7 @@ const detailMeta = document.querySelector('#detail-meta');
 const detailLocation = document.querySelector('#detail-location');
 const detailModified = document.querySelector('#detail-modified');
 const selectedDownload = document.querySelector<HTMLButtonElement>('[data-action="download"]');
+const selectedDelete = document.querySelector<HTMLButtonElement>('[data-action="delete"]');
 
 let storageItems: StorageItem[] = [];
 let selectedItem: StorageItem | null = null;
@@ -197,6 +198,36 @@ async function loadStorageUsage(): Promise<StorageUsage | null> {
 function download(item: StorageItem): void {
 	const query = new URLSearchParams({ path: item.path });
 	window.location.assign(`/api/files/download?${query.toString()}`);
+}
+
+async function deleteItem(item: StorageItem): Promise<void> {
+	const query = new URLSearchParams({ path: item.path });
+	const response = await fetch(`/api/files?${query.toString()}`, {
+		method: 'DELETE'
+	});
+	if (response.status === 401) {
+		window.location.assign('/login');
+		return;
+	}
+	if (!response.ok) {
+		let message = 'Unable to delete item.';
+		try {
+			const body = (await response.json()) as { message?: string };
+			if (body.message) message = body.message;
+		} catch {
+			// Keep the generic message when the response is not JSON.
+		}
+		throw new Error(message);
+	}
+
+	selectedItem = null;
+	resetPreview();
+	if (detailsPanel) detailsPanel.hidden = true;
+	appShell?.classList.remove('has-details');
+	if (detailsEmpty) detailsEmpty.hidden = false;
+	if (detailsContent) detailsContent.hidden = true;
+	showToast(`${item.type === 'directory' ? 'Folder' : 'File'} deleted.`);
+	await Promise.all([loadStorage(), loadStorageUsage()]);
 }
 
 function imageMimeType(name: string): string | null {
@@ -325,6 +356,7 @@ function selectItem(item: StorageItem): void {
 	if (detailLocation) detailLocation.textContent = item.path;
 	if (detailModified) detailModified.textContent = formatLastModified(item.lastModified);
 	if (selectedDownload) selectedDownload.hidden = item.type !== 'file';
+	if (selectedDelete) selectedDelete.hidden = false;
 	void loadImagePreview(item);
 	for (const row of document.querySelectorAll<HTMLElement>('.file-row')) {
 		row.classList.toggle('selected', row.dataset['path'] === item.path);
@@ -425,11 +457,25 @@ function renderItems(): void {
 		}
 
 		const action = document.createElement('button');
-		action.className = 'download';
+		action.className = item.type === 'file' ? 'download' : 'delete';
 		action.type = 'button';
-		action.textContent = item.type === 'file' ? 'Download' : '';
-		action.hidden = item.type !== 'file';
-		action.addEventListener('click', () => download(item));
+		action.textContent = item.type === 'file' ? 'Download' : 'Delete';
+		action.addEventListener('click', () => {
+			if (item.type === 'file') {
+				download(item);
+				return;
+			}
+
+			if (window.confirm('Delete this folder and all its files?')) {
+				void deleteItem(item).catch((error: unknown) =>
+					showToast(
+						error instanceof Error
+							? error.message
+							: 'Unable to delete folder.'
+					)
+				);
+			}
+		});
 		row.append(action);
 		fileRows.append(row);
 	}
@@ -797,6 +843,24 @@ document.addEventListener('click', (event) => {
 			break;
 		case 'download':
 			if (selectedItem?.type === 'file') download(selectedItem);
+			break;
+		case 'delete':
+			if (selectedItem) {
+				const item = selectedItem;
+				const label =
+					item.type === 'directory'
+						? 'folder and all its files'
+						: 'file';
+				if (window.confirm(`Delete this ${label}?`)) {
+					void deleteItem(item).catch((error: unknown) =>
+						showToast(
+							error instanceof Error
+								? error.message
+								: 'Unable to delete item.'
+						)
+					);
+				}
+			}
 			break;
 		case 'refresh':
 			void Promise.all([loadStorage(), loadStorageUsage()]);

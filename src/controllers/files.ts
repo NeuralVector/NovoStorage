@@ -4,9 +4,11 @@ import {
 	BadRequestException,
 	Body,
 	Controller,
+	Delete,
 	Get,
 	Inject,
 	HttpException,
+	NotFoundException,
 	Post,
 	Query,
 	Req,
@@ -176,6 +178,36 @@ export class FilesController {
 			`attachment; filename="${encodeURIComponent(fileName)}"`
 		);
 		reply.send(object.stream);
+	}
+
+	@Delete('files')
+	async deleteFile(
+		@Query('path') filePath: string,
+		@Req() request: FastifyRequest
+	): Promise<{ deleted: number }> {
+		const user = await this.auth.requireUser(request);
+		const normalizedPath = validateFilePath(filePath);
+		const key = `${user.userId}/${normalizedPath}`;
+		const directoryPrefix = `${key}/`;
+		const objects = await this.storage.list(user.userId);
+		const matchingObjects = objects.filter(
+			(object) => object.key === key || object.key.startsWith(directoryPrefix)
+		);
+
+		if (matchingObjects.length === 0) {
+			throw new NotFoundException('File or folder not found.');
+		}
+
+		await Promise.all(matchingObjects.map((object) => this.storage.delete(object.key)));
+		const releasedBytes = matchingObjects.reduce(
+			(total, object) => total + object.size,
+			0
+		);
+		if (releasedBytes > 0) {
+			await this.quota.release(user.userId, releasedBytes);
+		}
+
+		return { deleted: matchingObjects.length };
 	}
 
 	@Get('files/stream')
