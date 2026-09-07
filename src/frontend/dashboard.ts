@@ -459,7 +459,13 @@ function renderItems(): void {
 		const action = document.createElement('button');
 		action.className = item.type === 'file' ? 'download' : 'delete';
 		action.type = 'button';
-		action.textContent = item.type === 'file' ? 'Download' : 'Delete';
+		const actionName = item.type === 'file' ? 'Download' : 'Delete';
+		action.setAttribute('aria-label', actionName);
+		action.title = actionName;
+		action.innerHTML =
+			item.type === 'file'
+				? '<svg class="action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11m0 0 4-4m-4 4-4-4M5 21h14" /></svg>'
+				: '<svg class="action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16m-11 0V4h6v3m-9 0 1 14h10l1-14m-7 4v6m4-6v6" /></svg>';
 		action.addEventListener('click', () => {
 			if (item.type === 'file') {
 				download(item);
