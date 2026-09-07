@@ -39,6 +39,9 @@ const itemCount = document.querySelector('#item-count');
 const storageUsageText = document.querySelector<HTMLElement>('#storage-usage');
 const storageRemainingText = document.querySelector<HTMLElement>('#storage-remaining');
 const storageUsageBar = document.querySelector<HTMLElement>('#storage-usage-bar');
+const selectAll = document.querySelector<HTMLInputElement>('#select-all');
+const selectionActions = document.querySelector<HTMLElement>('#selection-actions');
+const selectionCount = document.querySelector<HTMLElement>('#selection-count');
 const breadcrumb = document.querySelector('#breadcrumb');
 const filter = document.querySelector<HTMLInputElement>('#file-filter');
 const toast = document.querySelector<HTMLElement>('#toast');
@@ -86,6 +89,7 @@ const selectedDelete = document.querySelector<HTMLButtonElement>('[data-action="
 
 let storageItems: StorageItem[] = [];
 let selectedItem: StorageItem | null = null;
+let selectedPaths = new Set<string>();
 let currentPath = '';
 let previewUrl: string | null = null;
 let previewRequest = 0;
@@ -197,7 +201,78 @@ async function loadStorageUsage(): Promise<StorageUsage | null> {
 
 function download(item: StorageItem): void {
 	const query = new URLSearchParams({ path: item.path });
-	window.location.assign(`/api/files/download?${query.toString()}`);
+	const link = document.createElement('a');
+	link.href = `/api/files/download?${query.toString()}`;
+	link.download = item.name;
+	link.rel = 'noopener';
+	document.body.append(link);
+	link.click();
+	link.remove();
+}
+
+function visibleItems(): StorageItem[] {
+	const search = filter?.value.trim().toLowerCase() ?? '';
+	const prefix = currentPath ? `${currentPath}/` : '';
+	return storageItems.filter((item) => {
+		if (!item.path.startsWith(prefix) || item.path === currentPath) return false;
+		const relativePath = item.path.slice(prefix.length);
+		return (
+			relativePath.split('/').filter(Boolean).length === 1 &&
+			item.name.toLowerCase().includes(search)
+		);
+	});
+}
+
+function selectedStorageItems(): StorageItem[] {
+	return storageItems.filter((item) => selectedPaths.has(item.path));
+}
+
+function updateSelectionUi(items = visibleItems()): void {
+	const selectedCount = selectedPaths.size;
+	if (selectionActions) selectionActions.hidden = selectedCount === 0;
+	if (selectionCount) {
+		selectionCount.textContent = `${selectedCount} selected`;
+	}
+	if (selectAll) {
+		const selectedVisibleCount = items.filter((item) =>
+			selectedPaths.has(item.path)
+		).length;
+		selectAll.checked = items.length > 0 && selectedVisibleCount === items.length;
+		selectAll.indeterminate =
+			selectedVisibleCount > 0 && selectedVisibleCount < items.length;
+	}
+}
+
+function clearSelection(): void {
+	selectedPaths.clear();
+	updateSelectionUi();
+}
+
+function downloadSelected(): void {
+	const files = new Map<string, StorageItem>();
+	for (const item of selectedStorageItems()) {
+		if (item.type === 'file') files.set(item.path, item);
+		else {
+			for (const child of storageItems) {
+				if (
+					child.type === 'file' &&
+					child.path.startsWith(`${item.path}/`)
+				) {
+					files.set(child.path, child);
+				}
+			}
+		}
+	}
+
+	if (files.size === 0) {
+		showToast('The selected folders contain no files.');
+		return;
+	}
+
+	[...files.values()].forEach((item, index) => {
+		window.setTimeout(() => download(item), index * 150);
+	});
+	showToast(`Starting ${files.size} download${files.size === 1 ? '' : 's'}.`);
 }
 
 async function deleteItem(item: StorageItem): Promise<void> {
@@ -227,6 +302,37 @@ async function deleteItem(item: StorageItem): Promise<void> {
 	if (detailsEmpty) detailsEmpty.hidden = false;
 	if (detailsContent) detailsContent.hidden = true;
 	showToast(`${item.type === 'directory' ? 'Folder' : 'File'} deleted.`);
+	await Promise.all([loadStorage(), loadStorageUsage()]);
+}
+
+async function deleteSelected(): Promise<void> {
+	const items = selectedStorageItems();
+	if (items.length === 0) return;
+	const label = items.length === 1 ? 'this item' : `these ${items.length} items`;
+	if (!window.confirm(`Delete ${label}? Folders and their files will be deleted.`)) return;
+
+	await Promise.all(
+		items.map(async (item) => {
+			const query = new URLSearchParams({ path: item.path });
+			const response = await fetch(`/api/files?${query.toString()}`, {
+				method: 'DELETE'
+			});
+			if (response.status === 401) {
+				window.location.assign('/login');
+				throw new Error('Authentication required.');
+			}
+			if (!response.ok) throw new Error(`Unable to delete ${item.name}.`);
+		})
+	);
+
+	selectedPaths.clear();
+	selectedItem = null;
+	resetPreview();
+	if (detailsPanel) detailsPanel.hidden = true;
+	appShell?.classList.remove('has-details');
+	if (detailsEmpty) detailsEmpty.hidden = false;
+	if (detailsContent) detailsContent.hidden = true;
+	showToast(`${items.length} item${items.length === 1 ? '' : 's'} deleted.`);
 	await Promise.all([loadStorage(), loadStorageUsage()]);
 }
 
@@ -366,6 +472,7 @@ function selectItem(item: StorageItem): void {
 function navigateTo(path: string): void {
 	currentPath = path;
 	selectedItem = null;
+	clearSelection();
 	resetPreview();
 	if (detailsPanel) detailsPanel.hidden = true;
 	appShell?.classList.remove('has-details');
@@ -413,28 +520,31 @@ function setLoadError(): void {
 
 function renderItems(): void {
 	if (!fileRows) return;
-	const search = filter?.value.trim().toLowerCase() ?? '';
-	const prefix = currentPath ? `${currentPath}/` : '';
-	const visibleItems = storageItems.filter((item) => {
-		if (!item.path.startsWith(prefix) || item.path === currentPath) return false;
-		const relativePath = item.path.slice(prefix.length);
-		return (
-			relativePath.split('/').filter(Boolean).length === 1 &&
-			item.name.toLowerCase().includes(search)
-		);
-	});
-	if (itemCount) itemCount.textContent = `${visibleItems.length} items`;
+	const items = visibleItems();
+	if (itemCount) itemCount.textContent = `${items.length} items`;
 	fileRows.replaceChildren();
-	if (visibleItems.length === 0) {
+	if (items.length === 0) {
 		fileRows.append(emptyState());
+		updateSelectionUi(items);
 		return;
 	}
 
-	for (const item of visibleItems) {
+	for (const item of items) {
 		const row = document.createElement('div');
 		row.className = 'file-row';
 		row.dataset['path'] = item.path;
 		row.setAttribute('role', 'row');
+		const checkbox = document.createElement('input');
+		checkbox.className = 'select-item';
+		checkbox.type = 'checkbox';
+		checkbox.checked = selectedPaths.has(item.path);
+		checkbox.setAttribute('aria-label', `Select ${item.name}`);
+		checkbox.addEventListener('change', () => {
+			if (checkbox.checked) selectedPaths.add(item.path);
+			else selectedPaths.delete(item.path);
+			renderItems();
+		});
+		row.append(checkbox);
 
 		const name = document.createElement('button');
 		name.className = 'file-name';
@@ -485,6 +595,7 @@ function renderItems(): void {
 		row.append(action);
 		fileRows.append(row);
 	}
+	updateSelectionUi(items);
 }
 
 async function loadStorage(): Promise<void> {
@@ -497,6 +608,11 @@ async function loadStorage(): Promise<void> {
 		}
 		if (!response.ok) throw new Error(`Unable to load files (${response.status})`);
 		storageItems = (await response.json()) as StorageItem[];
+		selectedPaths = new Set(
+			[...selectedPaths].filter((path) =>
+				storageItems.some((item) => item.path === path)
+			)
+		);
 		renderItems();
 	} catch (error) {
 		setLoadError();
@@ -850,6 +966,9 @@ document.addEventListener('click', (event) => {
 		case 'download':
 			if (selectedItem?.type === 'file') download(selectedItem);
 			break;
+		case 'download-selected':
+			downloadSelected();
+			break;
 		case 'delete':
 			if (selectedItem) {
 				const item = selectedItem;
@@ -867,6 +986,15 @@ document.addEventListener('click', (event) => {
 					);
 				}
 			}
+			break;
+		case 'delete-selected':
+			void deleteSelected().catch((error: unknown) =>
+				showToast(
+					error instanceof Error
+						? error.message
+						: 'Unable to delete items.'
+				)
+			);
 			break;
 		case 'refresh':
 			void Promise.all([loadStorage(), loadStorageUsage()]);
@@ -898,6 +1026,13 @@ detailsResizer?.addEventListener('pointerdown', (event) => {
 });
 
 filter?.addEventListener('input', renderItems);
+selectAll?.addEventListener('change', () => {
+	for (const item of visibleItems()) {
+		if (selectAll.checked) selectedPaths.add(item.path);
+		else selectedPaths.delete(item.path);
+	}
+	renderItems();
+});
 fileInput?.addEventListener('change', () => {
 	updateSelectedFiles(filesToUploads(fileInput.files));
 });

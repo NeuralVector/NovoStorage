@@ -346,6 +346,15 @@ main > header {
 .section-title h2 {
 	margin: 0;
 }
+.selection-actions {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-left: auto;
+}
+.selection-action {
+	padding: 4px;
+}
 .section-title span {
 	color: #667085;
 	font-size: 13px;
@@ -360,7 +369,7 @@ main > header {
 .table-head,
 .file-row {
 	display: grid;
-	grid-template-columns: minmax(180px, 2fr) 1fr 1fr 80px 90px;
+	grid-template-columns: 32px minmax(180px, 2fr) 1fr 1fr 80px 90px;
 	gap: 12px;
 	align-items: center;
 	padding: 13px 16px;
@@ -384,7 +393,7 @@ main > header {
 	width: calc(33.333% - 3px);
 	min-height: 130px;
 	margin: 8px;
-	grid-template-columns: 1fr auto;
+	grid-template-columns: 32px 1fr auto;
 	vertical-align: top;
 	border: 1px solid #edf0f5;
 	border-radius: 8px;
@@ -393,7 +402,12 @@ main > header {
 	display: none;
 }
 .file-table.grid .file-row .file-name {
-	grid-column: 1 / -1;
+	grid-column: 2 / -1;
+}
+.select-item {
+	width: 16px;
+	height: 16px;
+	accent-color: #146ef5;
 }
 .file-row.selected {
 	background: #eaf2ff;
@@ -956,7 +970,7 @@ html[data-theme='dark'] .preview {
 		display: none;
 	}
 	.file-row {
-		grid-template-columns: 1fr auto;
+		grid-template-columns: 32px 1fr auto;
 	}
 	.file-row > span:not(.file-name),
 	.file-row > button:not(.download):not(.delete) {

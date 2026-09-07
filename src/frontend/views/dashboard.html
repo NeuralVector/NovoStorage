@@ -156,6 +156,54 @@
 					<div class="section-title">
 						<h2 id="files-heading">Files</h2>
 						<span id="item-count">Loading...</span>
+						<div
+							id="selection-actions"
+							class="selection-actions"
+							hidden
+						>
+							<span id="selection-count"></span>
+							<button
+								class="download selection-action"
+								type="button"
+								data-action="download-selected"
+								aria-label="Download selected items"
+								title="Download selected items"
+							>
+								<svg
+									class="action-icon"
+									viewBox="0 0 24 24"
+									aria-hidden="true"
+								>
+									<path
+										d="M12 3v11m0 0 4-4m-4 4-4-4M5 21h14"
+									/>
+								</svg>
+								<span class="sr-only"
+									>Download selected
+									items</span
+								>
+							</button>
+							<button
+								class="delete selection-action"
+								type="button"
+								data-action="delete-selected"
+								aria-label="Delete selected items"
+								title="Delete selected items"
+							>
+								<svg
+									class="action-icon"
+									viewBox="0 0 24 24"
+									aria-hidden="true"
+								>
+									<path
+										d="M4 7h16m-11 0V4h6v3m-9 0 1 14h10l1-14m-7 4v6m4-6v6"
+									/>
+								</svg>
+								<span class="sr-only"
+									>Delete selected items</span
+								>
+							</button>
+						</div>
 					</div>
 					<div
 						class="file-table"
@@ -163,7 +211,12 @@
 						aria-label="Storage files"
 					>
 						<div class="table-head" role="row">
-							<span>Name</span><span>Owner</span
+							<span
+								><input
+									id="select-all"
+									type="checkbox"
+									aria-label="Select all visible items" /></span
+							><span>Name</span><span>Owner</span
 							><span>Last modified</span><span>Size</span
 							><span></span>
 						</div>
