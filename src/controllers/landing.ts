@@ -35,8 +35,8 @@ export class LandingController {
 		await this.renderer.render(reply, 'landing');
 	}
 	@Get('login')
-	loginHandler(@Res() reply: FastifyReply): FastifyReply {
-		return this.auth.redirectToSignIn(reply, this.dashboardUrl());
+	loginHandler(@Req() request: FastifyRequest, @Res() reply: FastifyReply): FastifyReply {
+		return this.auth.redirectToSignIn(reply, this.loginRedirectUrl(request));
 	}
 
 	@Get('signup')
@@ -54,5 +54,23 @@ export class LandingController {
 		url.hash = '';
 
 		return url.toString();
+	}
+
+	private loginRedirectUrl(request: FastifyRequest): string {
+		const requestUrl = new URL(
+			request.url,
+			`${request.protocol}://${request.hostname}`
+		);
+		const requestedUrl = requestUrl.searchParams.get('redirect_url');
+		if (requestedUrl) {
+			try {
+				const target = new URL(requestedUrl);
+				const website = new URL(config.get('website.url'));
+				if (target.origin === website.origin) return target.toString();
+			} catch {
+				// Use the dashboard when the requested redirect is invalid.
+			}
+		}
+		return this.dashboardUrl();
 	}
 }

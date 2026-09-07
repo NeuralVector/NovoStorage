@@ -25,6 +25,7 @@ import {
 	StorageQuotaExceededError,
 	type StorageQuotaStore
 } from '#services/storage-quota.ts';
+import { STORAGE_REFERENCES, type StorageReferenceStore } from '#services/storage-references.ts';
 import { validateFilePath } from '#utils/storage-path.ts';
 
 interface StorageItem {
@@ -33,6 +34,9 @@ interface StorageItem {
 	type: 'file' | 'directory';
 	size: number;
 	lastModified: string | null;
+	owner: string;
+	referenceId?: string;
+	virtual?: boolean;
 }
 
 interface CreateDirectoryBody {
@@ -109,7 +113,8 @@ export class FilesController {
 		@Inject(AUTH_OPERATIONS) private readonly auth: AuthOperations,
 		@Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
 		@Inject(STORAGE_QUOTA) private readonly quota: StorageQuotaStore,
-		@Inject(FILE_SHARING) private readonly shares: FileShareStore
+		@Inject(FILE_SHARING) private readonly shares: FileShareStore,
+		@Inject(STORAGE_REFERENCES) private readonly references: StorageReferenceStore
 	) {}
 
 	@Get('files')
@@ -137,7 +142,8 @@ export class FilesController {
 						path,
 						type: isDirectory ? 'directory' : 'file',
 						size: isDirectory ? 0 : object.size,
-						lastModified: null
+						lastModified: null,
+						owner: 'You'
 					}),
 					type: isDirectory ? 'directory' : 'file',
 					size: isDirectory ? 0 : object.size,
@@ -145,6 +151,40 @@ export class FilesController {
 						items.get(path)?.lastModified,
 						object.lastModified
 					)
+				});
+			}
+		}
+
+		const references = (await this.references.list(user.userId)).filter((reference) =>
+			objects.some((object) => object.key === reference.objectKey)
+		);
+		if (references.length > 0) {
+			const sharedRoot = 'Shared with me';
+			items.set(sharedRoot, {
+				name: sharedRoot,
+				path: sharedRoot,
+				type: 'directory',
+				size: 0,
+				lastModified: null,
+				owner: '—',
+				virtual: true
+			});
+			const usedNames = new Set<string>();
+			for (const reference of references) {
+				const { base, extension } = splitFileName(reference.name);
+				let name = reference.name;
+				for (let suffix = 1; usedNames.has(name); suffix += 1) {
+					name = `${base} (${suffix})${extension}`;
+				}
+				usedNames.add(name);
+				items.set(`${sharedRoot}/${name}`, {
+					name,
+					path: `${sharedRoot}/${name}`,
+					type: 'file',
+					size: 0,
+					lastModified: reference.createdAt.toISOString(),
+					owner: reference.ownerUserId,
+					referenceId: reference.id
 				});
 			}
 		}
@@ -157,14 +197,20 @@ export class FilesController {
 	@Get('files/download')
 	async downloadFile(
 		@Query('path') filePath: string,
+		@Query('referenceId') referenceId: string | undefined,
 		@Req() request: FastifyRequest,
 		@Res() reply: FastifyReply
 	): Promise<void> {
 		const user = await this.auth.requireUser(request);
-		const normalizedPath = validateFilePath(filePath);
-
-		const key = `${user.userId}/${normalizedPath}`;
-		const fileName = normalizedPath.split('/').pop() ?? 'download';
+		const reference = referenceId
+			? await this.references.getForUser(user.userId, referenceId)
+			: null;
+		if (referenceId && !reference) {
+			throw new NotFoundException('Storage reference not found.');
+		}
+		const normalizedPath = reference ? null : validateFilePath(filePath);
+		const key = reference ? reference.objectKey : `${user.userId}/${normalizedPath}`;
+		const fileName = reference?.name ?? normalizedPath?.split('/').pop() ?? 'download';
 		const object = await this.storage.download(key);
 
 		reply.header('Content-Type', 'application/octet-stream');
@@ -178,9 +224,19 @@ export class FilesController {
 	@Delete('files')
 	async deleteFile(
 		@Query('path') filePath: string,
+		@Query('referenceId') referenceId: string | undefined,
 		@Req() request: FastifyRequest
 	): Promise<{ deleted: number }> {
 		const user = await this.auth.requireUser(request);
+		if (referenceId) {
+			const reference = await this.references.getForUser(
+				user.userId,
+				referenceId
+			);
+			if (!reference) throw new NotFoundException('Storage reference not found.');
+			await this.references.revoke(user.userId, referenceId);
+			return { deleted: 1 };
+		}
 		const normalizedPath = validateFilePath(filePath);
 		const key = `${user.userId}/${normalizedPath}`;
 		const directoryPrefix = `${key}/`;
@@ -202,6 +258,11 @@ export class FilesController {
 			await this.quota.release(user.userId, releasedBytes);
 		}
 		await this.shares.revokeForPath(user.userId, normalizedPath);
+		await Promise.all(
+			matchingObjects.map((object) =>
+				this.references.revokeForObject(user.userId, object.key)
+			)
+		);
 
 		return { deleted: matchingObjects.length };
 	}
@@ -209,13 +270,20 @@ export class FilesController {
 	@Get('files/stream')
 	async streamFile(
 		@Query('path') filePath: string,
+		@Query('referenceId') referenceId: string | undefined,
 		@Req() request: FastifyRequest,
 		@Res() reply: FastifyReply
 	): Promise<void> {
 		const user = await this.auth.requireUser(request);
-		const normalizedPath = validateFilePath(filePath);
-		const key = `${user.userId}/${normalizedPath}`;
-		const fileName = normalizedPath.split('/').pop() ?? 'video';
+		const reference = referenceId
+			? await this.references.getForUser(user.userId, referenceId)
+			: null;
+		if (referenceId && !reference) {
+			throw new NotFoundException('Storage reference not found.');
+		}
+		const normalizedPath = reference ? null : validateFilePath(filePath);
+		const key = reference ? reference.objectKey : `${user.userId}/${normalizedPath}`;
+		const fileName = reference?.name ?? normalizedPath?.split('/').pop() ?? 'video';
 		const object = await this.storage.download(key, request.headers.range);
 
 		reply.header(

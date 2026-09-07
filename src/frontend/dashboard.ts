@@ -6,6 +6,9 @@ interface StorageItem {
 	type: 'file' | 'directory';
 	size: number;
 	lastModified: string | null;
+	owner: string;
+	referenceId?: string;
+	virtual?: boolean;
 }
 
 interface StorageUsage {
@@ -208,6 +211,7 @@ async function loadStorageUsage(): Promise<StorageUsage | null> {
 
 function download(item: StorageItem): void {
 	const query = new URLSearchParams({ path: item.path });
+	if (item.referenceId) query.set('referenceId', item.referenceId);
 	const link = document.createElement('a');
 	link.href = `/api/files/download?${query.toString()}`;
 	link.download = item.name;
@@ -229,6 +233,7 @@ async function viewContents(item: StorageItem): Promise<void> {
 
 	try {
 		const query = new URLSearchParams({ path: item.path });
+		if (item.referenceId) query.set('referenceId', item.referenceId);
 		const response = await fetch(`/api/files/download?${query.toString()}`);
 		if (response.status === 401) {
 			window.location.assign('/login');
@@ -313,22 +318,25 @@ function visibleItems(): StorageItem[] {
 }
 
 function selectedStorageItems(): StorageItem[] {
-	return storageItems.filter((item) => selectedPaths.has(item.path));
+	return storageItems.filter((item) => selectedPaths.has(item.path) && !item.virtual);
 }
 
 function updateSelectionUi(items = visibleItems()): void {
-	const selectedCount = selectedPaths.size;
+	const selectedCount = selectedStorageItems().length;
 	if (selectionActions) selectionActions.hidden = selectedCount === 0;
 	if (selectionCount) {
 		selectionCount.textContent = `${selectedCount} selected`;
 	}
 	if (selectAll) {
-		const selectedVisibleCount = items.filter((item) =>
+		const selectableItems = items.filter((item) => !item.virtual);
+		const selectedVisibleCount = selectableItems.filter((item) =>
 			selectedPaths.has(item.path)
 		).length;
-		selectAll.checked = items.length > 0 && selectedVisibleCount === items.length;
+		selectAll.checked =
+			selectableItems.length > 0 &&
+			selectedVisibleCount === selectableItems.length;
 		selectAll.indeterminate =
-			selectedVisibleCount > 0 && selectedVisibleCount < items.length;
+			selectedVisibleCount > 0 && selectedVisibleCount < selectableItems.length;
 	}
 }
 
@@ -366,6 +374,7 @@ function downloadSelected(): void {
 
 async function deleteItem(item: StorageItem): Promise<void> {
 	const query = new URLSearchParams({ path: item.path });
+	if (item.referenceId) query.set('referenceId', item.referenceId);
 	const response = await fetch(`/api/files?${query.toString()}`, {
 		method: 'DELETE'
 	});
@@ -403,6 +412,7 @@ async function deleteSelected(): Promise<void> {
 	await Promise.all(
 		items.map(async (item) => {
 			const query = new URLSearchParams({ path: item.path });
+			if (item.referenceId) query.set('referenceId', item.referenceId);
 			const response = await fetch(`/api/files?${query.toString()}`, {
 				method: 'DELETE'
 			});
@@ -454,6 +464,7 @@ function videoMimeType(name: string): string | null {
 
 function videoStreamUrl(item: StorageItem): string {
 	const query = new URLSearchParams({ path: item.path });
+	if (item.referenceId) query.set('referenceId', item.referenceId);
 	return `/api/files/stream?${query.toString()}`;
 }
 
@@ -515,6 +526,7 @@ async function loadImagePreview(item: StorageItem): Promise<void> {
 
 	try {
 		const query = new URLSearchParams({ path: item.path });
+		if (item.referenceId) query.set('referenceId', item.referenceId);
 		const response = await fetch(`/api/files/download?${query.toString()}`);
 		if (request !== previewRequest) return;
 		if (!response.ok) {
@@ -552,7 +564,7 @@ function selectItem(item: StorageItem): void {
 	if (detailModified) detailModified.textContent = formatLastModified(item.lastModified);
 	if (selectedDownload) selectedDownload.hidden = item.type !== 'file';
 	if (selectedContents) selectedContents.hidden = item.type !== 'file';
-	if (selectedShare) selectedShare.hidden = item.type !== 'file';
+	if (selectedShare) selectedShare.hidden = item.type !== 'file' || Boolean(item.referenceId);
 	if (selectedDelete) selectedDelete.hidden = false;
 	void loadImagePreview(item);
 	for (const row of document.querySelectorAll<HTMLElement>('.file-row')) {
@@ -628,6 +640,7 @@ function renderItems(): void {
 		const checkbox = document.createElement('input');
 		checkbox.className = 'select-item';
 		checkbox.type = 'checkbox';
+		checkbox.disabled = Boolean(item.virtual);
 		checkbox.checked = selectedPaths.has(item.path);
 		checkbox.setAttribute('aria-label', `Select ${item.name}`);
 		checkbox.addEventListener('change', () => {
@@ -648,7 +661,7 @@ function renderItems(): void {
 		row.append(name);
 
 		for (const value of [
-			item.type === 'directory' ? '—' : 'You',
+			item.type === 'directory' ? '—' : item.owner,
 			formatLastModified(item.lastModified),
 			item.type === 'directory' ? '—' : formatFileSize(item.size)
 		]) {
@@ -661,6 +674,9 @@ function renderItems(): void {
 		action.className = item.type === 'file' ? 'download' : 'delete';
 		action.type = 'button';
 		const actionName = item.type === 'file' ? 'Download' : 'Delete';
+		if (item.virtual) {
+			action.hidden = true;
+		}
 		action.setAttribute('aria-label', actionName);
 		action.title = actionName;
 		action.innerHTML =
@@ -1136,6 +1152,7 @@ detailsResizer?.addEventListener('pointerdown', (event) => {
 filter?.addEventListener('input', renderItems);
 selectAll?.addEventListener('change', () => {
 	for (const item of visibleItems()) {
+		if (item.virtual) continue;
 		if (selectAll.checked) selectedPaths.add(item.path);
 		else selectedPaths.delete(item.path);
 	}

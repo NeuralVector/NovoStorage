@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
+		<link rel="stylesheet" href="/assets/css/components.css" />
+		<title>Shared file · NovoStorage</title>
+		<style>
+			body {
+				min-height: 100vh;
+				margin: 0;
+				display: grid;
+				place-items: center;
+				font-family: Arial, sans-serif;
+				color: #172033;
+				background: #f7f9fc;
+			}
+			.card {
+				width: min(460px, calc(100vw - 32px));
+				padding: 32px;
+				border: 1px solid #d9e0ea;
+				border-radius: 14px;
+				background: #fff;
+				box-shadow: 0 16px 50px #17203322;
+			}
+			.logo {
+				color: #146ef5;
+				font-size: 20px;
+				font-weight: bold;
+			}
+			.logo span {
+				color: #15803d;
+			}
+			.kicker {
+				color: #146ef5;
+				font-size: 12px;
+				font-weight: bold;
+				letter-spacing: 1px;
+			}
+			#file-name {
+				overflow-wrap: anywhere;
+			}
+			#file-owner,
+			#share-status {
+				color: #667085;
+			}
+			.actions {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 10px;
+				margin-top: 24px;
+			}
+			.actions a,
+			.actions button {
+				padding: 10px 14px;
+				border: 0;
+				border-radius: 7px;
+				text-decoration: none;
+				cursor: pointer;
+				font: inherit;
+			}
+			.primary {
+				color: #fff;
+				background: #146ef5;
+			}
+			.secondary {
+				color: #172033;
+				background: #eaf2ff;
+			}
+			.error {
+				color: #b42318 !important;
+			}
+		</style>
+	</head>
+	<body>
+		<main class="card">
+			<div class="logo">Novo<span>Storage</span></div>
+			<p class="kicker">SHARED FILE</p>
+			<h1 id="file-name">Loading…</h1>
+			<p id="file-owner">—</p>
+			<p id="share-status">Loading share…</p>
+			<div class="actions">
+				<button id="add-to-storage" class="primary" type="button" hidden>
+					Add to my storage
+				</button>
+				<a id="sign-in" class="primary" href="/login" hidden>Sign in</a>
+				<a id="download-file" class="secondary" href="#" download
+					>Download</a
+				>
+			</div>
+		</main>
+		<script type="module" src="/assets/shared.js"></script>
+	</body>
+</html>
