@@ -46,7 +46,22 @@ const config = convict({
 		}
 	},
 
+	database: {
+		url: {
+			doc: 'PostgreSQL connection URL',
+			format: String,
+			default: 'postgresql://novostorage:novostorage@localhost:5432/novostorage',
+			env: 'POSTGRES_URL'
+		}
+	},
+
 	storage: {
+		quotaBytes: {
+			doc: 'Maximum storage space per user in bytes',
+			format: 'nat',
+			default: 10 * 1024 ** 3,
+			env: 'STORAGE_QUOTA_BYTES'
+		},
 		s3: {
 			region: {
 				doc: 'AWS S3 region',

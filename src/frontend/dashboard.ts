@@ -8,6 +8,12 @@ interface StorageItem {
 	lastModified: string | null;
 }
 
+interface StorageUsage {
+	usedBytes: number;
+	quotaBytes: number;
+	remainingBytes: number;
+}
+
 interface SelectedUpload {
 	file: File;
 	relativePath: string;
@@ -30,6 +36,9 @@ interface DroppedDirectoryReader {
 
 const fileRows = document.querySelector('#file-rows');
 const itemCount = document.querySelector('#item-count');
+const storageUsageText = document.querySelector<HTMLElement>('#storage-usage');
+const storageRemainingText = document.querySelector<HTMLElement>('#storage-remaining');
+const storageUsageBar = document.querySelector<HTMLElement>('#storage-usage-bar');
 const breadcrumb = document.querySelector('#breadcrumb');
 const filter = document.querySelector<HTMLInputElement>('#file-filter');
 const toast = document.querySelector<HTMLElement>('#toast');
@@ -158,6 +167,31 @@ function showToast(message: string): void {
 	window.setTimeout(() => {
 		toast.hidden = true;
 	}, 3000);
+}
+
+function renderStorageUsage(usage: StorageUsage): void {
+	const percentage = usage.quotaBytes
+		? Math.min(100, (usage.usedBytes / usage.quotaBytes) * 100)
+		: 100;
+	if (storageUsageText) {
+		storageUsageText.textContent = `${formatFileSize(usage.usedBytes)} of ${formatFileSize(usage.quotaBytes)} used`;
+	}
+	if (storageRemainingText) {
+		storageRemainingText.textContent = `${formatFileSize(usage.remainingBytes)} left`;
+	}
+	if (storageUsageBar) storageUsageBar.style.width = `${percentage}%`;
+}
+
+async function loadStorageUsage(): Promise<StorageUsage | null> {
+	const response = await fetch('/api/storage/usage');
+	if (response.status === 401) {
+		window.location.assign('/login');
+		return null;
+	}
+	if (!response.ok) throw new Error(`Unable to load storage usage (${response.status})`);
+	const usage = (await response.json()) as StorageUsage;
+	renderStorageUsage(usage);
+	return usage;
 }
 
 function download(item: StorageItem): void {
@@ -629,6 +663,19 @@ async function uploadFiles(): Promise<void> {
 
 	setUploading(true);
 	try {
+		if (uploadStatusText) uploadStatusText.textContent = 'Checking available storage…';
+		const totalSize = selectedUploads.reduce(
+			(total, selected) => total + selected.file.size,
+			0
+		);
+		const usage = await loadStorageUsage();
+		if (!usage) return;
+		if (totalSize > usage.remainingBytes) {
+			throw new Error(
+				`Not enough storage space. ${formatFileSize(totalSize)} required, ${formatFileSize(usage.remainingBytes)} available.`
+			);
+		}
+
 		for (const [index, selected] of selectedUploads.entries()) {
 			const file = selected.file;
 			const relativeParts = selected.relativePath
@@ -649,20 +696,32 @@ async function uploadFiles(): Promise<void> {
 				: '';
 			const response = await fetch(`/api/files${query}`, {
 				method: 'POST',
+				headers: { 'x-file-size': String(file.size) },
 				body: formData
 			});
 			if (response.status === 401) {
 				window.location.assign('/login');
 				return;
 			}
-			if (!response.ok) throw new Error(`Unable to upload ${file.name}`);
+			if (!response.ok) {
+				let message = `Unable to upload ${file.name}`;
+				try {
+					const body = (await response.json()) as {
+						message?: string;
+					};
+					if (body.message) message = body.message;
+				} catch {
+					// Keep the default upload error when the response is not JSON.
+				}
+				throw new Error(message);
+			}
 		}
 
 		clearSelectedFiles();
 		setUploading(false);
 		closeModal();
 		showToast('Upload complete.');
-		await loadStorage();
+		await Promise.all([loadStorage(), loadStorageUsage()]);
 	} finally {
 		setUploading(false);
 	}
@@ -740,7 +799,7 @@ document.addEventListener('click', (event) => {
 			if (selectedItem?.type === 'file') download(selectedItem);
 			break;
 		case 'refresh':
-			void loadStorage();
+			void Promise.all([loadStorage(), loadStorageUsage()]);
 			break;
 		case 'close-details':
 			resetPreview();
@@ -840,6 +899,9 @@ if (accountName) accountName.textContent = getCurrentUserName();
 renderBreadcrumb();
 if (isSignedIn()) {
 	void loadStorage();
+	void loadStorageUsage().catch((error: unknown) =>
+		showToast(error instanceof Error ? error.message : 'Unable to load storage usage.')
+	);
 } else {
 	window.location.replace('/login');
 }

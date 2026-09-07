@@ -1,9 +1,12 @@
+import { Transform } from 'node:stream';
+
 import {
 	BadRequestException,
 	Body,
 	Controller,
 	Get,
 	Inject,
+	HttpException,
 	Post,
 	Query,
 	Req,
@@ -14,6 +17,11 @@ import type { FastifyReply } from 'fastify';
 
 import { AUTH_OPERATIONS, type AuthOperations } from '#services/auth.ts';
 import { OBJECT_STORAGE, type ObjectStorage } from '#services/object-storage.ts';
+import {
+	STORAGE_QUOTA,
+	StorageQuotaExceededError,
+	type StorageQuotaStore
+} from '#services/storage-quota.ts';
 
 interface StorageItem {
 	name: string;
@@ -103,7 +111,8 @@ async function getAvailableFileKey(
 export class FilesController {
 	constructor(
 		@Inject(AUTH_OPERATIONS) private readonly auth: AuthOperations,
-		@Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage
+		@Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
+		@Inject(STORAGE_QUOTA) private readonly quota: StorageQuotaStore
 	) {}
 
 	@Get('files')
@@ -217,7 +226,51 @@ export class FilesController {
 
 		const path = validateRelativePath(directoryPath);
 		const key = await getAvailableFileKey(this.storage, user.userId, path, fileName);
-		await this.storage.upload(key, file.file, file.mimetype);
+		const expectedSizeHeader = request.headers['x-file-size'];
+		if (typeof expectedSizeHeader !== 'string') {
+			throw new BadRequestException('The uploaded file size is required.');
+		}
+		const expectedSize = Number(expectedSizeHeader);
+		if (!Number.isSafeInteger(expectedSize) || expectedSize < 0) {
+			throw new BadRequestException('The uploaded file size is invalid.');
+		}
+
+		try {
+			await this.quota.reserve(user.userId, expectedSize);
+		} catch (error) {
+			if (error instanceof StorageQuotaExceededError) {
+				throw new HttpException('Storage quota exceeded.', 507);
+			}
+			throw error;
+		}
+
+		let actualSize = 0;
+		const countedFile = new Transform({
+			transform(chunk: Buffer, _encoding, callback) {
+				actualSize += chunk.length;
+				if (actualSize > expectedSize) {
+					callback(
+						new BadRequestException(
+							'Uploaded file size does not match.'
+						)
+					);
+					return;
+				}
+				callback(null, chunk);
+			}
+		});
+		file.file.pipe(countedFile);
+
+		try {
+			await this.storage.upload(key, countedFile, file.mimetype);
+			if (actualSize !== expectedSize) {
+				throw new BadRequestException('Uploaded file size does not match.');
+			}
+		} catch (error) {
+			await this.storage.delete(key).catch(() => undefined);
+			await this.quota.release(user.userId, expectedSize);
+			throw error;
+		}
 
 		return { key };
 	}

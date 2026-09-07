@@ -3,6 +3,7 @@ import { Readable } from 'node:stream';
 import {
 	GetObjectCommand,
 	ListObjectsV2Command,
+	DeleteObjectCommand,
 	PutObjectCommand,
 	S3Client
 } from '@aws-sdk/client-s3';
@@ -44,6 +45,15 @@ export class S3ObjectStorage implements ObjectStorage {
 		});
 
 		await upload.done();
+	}
+
+	async delete(key: string): Promise<void> {
+		await this.client.send(
+			new DeleteObjectCommand({
+				Bucket: config.get('storage.s3.bucket'),
+				Key: key
+			})
+		);
 	}
 
 	async createDirectory(key: string): Promise<void> {

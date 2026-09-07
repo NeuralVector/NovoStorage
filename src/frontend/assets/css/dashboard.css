@@ -179,6 +179,11 @@ nav {
 	display: block;
 	margin-top: 8px;
 }
+.storage-quota small {
+	display: block;
+	margin-top: 8px;
+	color: #667085;
+}
 .storage-quota i {
 	display: block;
 	height: 6px;
@@ -856,6 +861,9 @@ html[data-theme='dark'] .popover button:hover {
 }
 html[data-theme='dark'] .storage-quota {
 	border-color: #374151;
+}
+html[data-theme='dark'] .storage-quota small {
+	color: #9ca3af;
 }
 html[data-theme='dark'] .storage-quota i {
 	background: #374151;
