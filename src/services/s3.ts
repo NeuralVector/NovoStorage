@@ -19,6 +19,11 @@ export const s3ClientProvider = {
 		new S3Client({
 			region: config.get('storage.s3.region'),
 			endpoint: config.get('storage.s3.endpoint'),
+			// Some mobile hotspots advertise IPv6 without providing a usable route.
+			// Backblaze remains reachable over IPv4 in that environment.
+			requestHandler: {
+				httpsAgent: { family: 4 }
+			},
 			credentials: {
 				accessKeyId: config.get('storage.s3.accessKeyId'),
 				secretAccessKey: config.get('storage.s3.secretAccessKey')
