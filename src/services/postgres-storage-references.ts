@@ -1,3 +1,4 @@
+// PostgreSQL implementation for virtual shared-file references.
 import { randomUUID } from 'node:crypto';
 
 import { Inject, Injectable } from '@nestjs/common';
@@ -12,6 +13,7 @@ export class PostgresStorageReferenceStore implements StorageReferenceStore, OnM
 	constructor(@Inject(POSTGRES_POOL) private readonly pool: Pool) {}
 
 	async onModuleInit(): Promise<void> {
+		// The reference table stores permission and pointer metadata, not file bytes.
 		await this.pool.query(`
 			CREATE TABLE IF NOT EXISTS storage_references (
 				id TEXT PRIMARY KEY,
@@ -41,6 +43,8 @@ export class PostgresStorageReferenceStore implements StorageReferenceStore, OnM
 		objectKey: string,
 		name: string
 	): Promise<StorageReference> {
+		// Do not create duplicate active references for the same recipient and object; the unique
+		// partial index is the final race-safe enforcement when two accepts happen together.
 		const existing = await this.pool.query<StorageReferenceRow>(
 			`SELECT id, owner_user_id, recipient_user_id, object_key, name, created_at
 			 FROM storage_references
@@ -66,6 +70,8 @@ export class PostgresStorageReferenceStore implements StorageReferenceStore, OnM
 	}
 
 	async list(recipientUserId: string): Promise<StorageReference[]> {
+		// Recipients see only active references addressed to their own user ID.
+		// Only active references belonging to this recipient are returned.
 		const result = await this.pool.query<StorageReferenceRow>(
 			`SELECT id, owner_user_id, recipient_user_id, object_key, name, created_at
 			 FROM storage_references
@@ -77,6 +83,7 @@ export class PostgresStorageReferenceStore implements StorageReferenceStore, OnM
 	}
 
 	async getForUser(recipientUserId: string, id: string): Promise<StorageReference | null> {
+		// Combining recipient and ID prevents a user from probing another user's reference record.
 		const result = await this.pool.query<StorageReferenceRow>(
 			`SELECT id, owner_user_id, recipient_user_id, object_key, name, created_at
 			 FROM storage_references
@@ -88,6 +95,7 @@ export class PostgresStorageReferenceStore implements StorageReferenceStore, OnM
 	}
 
 	async revoke(recipientUserId: string, id: string): Promise<void> {
+		// Revocation is a soft delete so owner metadata can remain auditable.
 		await this.pool.query(
 			`UPDATE storage_references
 			 SET revoked_at = NOW()
@@ -97,6 +105,7 @@ export class PostgresStorageReferenceStore implements StorageReferenceStore, OnM
 	}
 
 	async revokeForObject(ownerUserId: string, objectKey: string): Promise<void> {
+		// Owner deletion invalidates every recipient pointer to that exact object.
 		await this.pool.query(
 			`UPDATE storage_references
 			 SET revoked_at = NOW()

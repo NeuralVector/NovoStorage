@@ -9,6 +9,7 @@ export class DashboardController {
 
 	@Get()
 	async dashboardHandler(@Res() reply: FastifyReply): Promise<void> {
+		// Rendering is delegated so this route only describes which page is requested.
 		await this.renderer.render(reply, 'dashboard');
 	}
 }

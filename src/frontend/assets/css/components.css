@@ -1,3 +1,4 @@
+/* Shared visual components such as the logo and buttons. */
 .logo {
 	display: flex;
 	align-items: center;

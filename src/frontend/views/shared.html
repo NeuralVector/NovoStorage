@@ -1,6 +1,8 @@
+<!-- Public page shown before a shared file is accepted into another user's storage. -->
 <!doctype html>
 <html lang="en">
 	<head>
+		<!-- This page is public; the accept API call still requires authentication. -->
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
@@ -74,6 +76,7 @@
 		</style>
 	</head>
 	<body>
+		<!-- shared.ts fills the filename, owner and available actions. -->
 		<main class="card">
 			<div class="logo">Novo<span>Storage</span></div>
 			<p class="kicker">SHARED FILE</p>

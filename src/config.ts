@@ -1,6 +1,10 @@
+// Centralized application configuration.
+// Convict reads environment variables and validates their expected formats.
 import convict from 'convict';
 
+// Other files import this object instead of reading process.env everywhere.
 const config = convict({
+	// Convict maps each documented option to an environment variable and validates it at startup.
 	env: {
 		doc: 'Application environment',
 		format: ['development', 'production', 'test'],
@@ -9,6 +13,7 @@ const config = convict({
 	},
 
 	server: {
+		// Host/port are kept together because they define where the HTTP listener binds.
 		host: {
 			doc: 'Server bind address',
 			format: String,
@@ -25,6 +30,7 @@ const config = convict({
 	},
 
 	clerk: {
+		// Clerk owns browser authentication; this URL is the safe external handoff destination.
 		accountPortalUrl: {
 			doc: 'Clerk Account Portal URL',
 			format: (value: unknown) => {
@@ -38,6 +44,7 @@ const config = convict({
 	},
 
 	website: {
+		// Absolute public URLs are used when generating redirects and share links.
 		url: {
 			doc: 'Public website URL',
 			format: String,
@@ -47,6 +54,7 @@ const config = convict({
 	},
 
 	database: {
+		// PostgreSQL stores metadata, quota counters, shares, and virtual references.
 		url: {
 			doc: 'PostgreSQL connection URL',
 			format: String,
@@ -56,6 +64,7 @@ const config = convict({
 	},
 
 	storage: {
+		// Quota is an accounting limit; object bytes live in the configured S3-compatible service.
 		quotaBytes: {
 			doc: 'Maximum storage space per user in bytes',
 			format: 'nat',
@@ -113,6 +122,7 @@ const config = convict({
 	}
 });
 
+// Fail fast on misspelled or unsupported environment variables instead of running misconfigured.
 config.validate({ allowed: 'strict' });
 
 export default config;

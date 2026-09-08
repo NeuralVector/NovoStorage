@@ -10,6 +10,7 @@
 [hidden] {
 	display: none !important;
 }
+/* Dashboard layout, tables, panels, modals and responsive behavior. */
 body {
 	margin: 0;
 }

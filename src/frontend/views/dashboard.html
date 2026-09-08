@@ -1,6 +1,8 @@
+<!-- Dashboard HTML shell. dashboard.js fills the file table and handles interactions. -->
 <!doctype html>
 <html lang="en">
 	<head>
+		<!-- Metadata and CSS are loaded before the visible dashboard markup. -->
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>My storage · NovoStorage</title>
@@ -9,7 +11,9 @@
 		<link rel="stylesheet" href="/assets/css/dashboard.css" />
 	</head>
 	<body>
+		<!-- The shell has a navigation sidebar, a main content area and details panel. -->
 		<div class="app-shell">
+			<!-- Left-side navigation and account controls. -->
 			<aside class="sidebar" aria-label="Storage navigation">
 				<div class="brand">
 					<a href="/" class="logo">
@@ -77,6 +81,7 @@
 				</div>
 			</aside>
 
+			<!-- Main file browser; dashboard.ts fills its dynamic sections. -->
 			<main>
 				<header>
 					<div
@@ -233,6 +238,7 @@
 				</footer>
 			</main>
 
+			<!-- Details are hidden until the user selects a file or directory. -->
 			<aside
 				id="details-panel"
 				class="details"
@@ -343,6 +349,7 @@
 			</aside>
 		</div>
 
+		<!-- All modal dialogs share one backdrop so the page behind them is dimmed. -->
 		<div id="modal-backdrop" class="modal-backdrop" hidden>
 			<section
 				id="upload-modal"

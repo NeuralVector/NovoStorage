@@ -1,6 +1,8 @@
+// A reference points at an existing owner's object instead of copying the file.
 export const STORAGE_REFERENCES = Symbol('STORAGE_REFERENCES');
 
 export interface StorageReference {
+	// These fields identify the owner, recipient, and exact object without duplicating file bytes.
 	id: string;
 	ownerUserId: string;
 	recipientUserId: string;
@@ -10,6 +12,7 @@ export interface StorageReference {
 }
 
 export interface StorageReferenceStore {
+	// References are access records: revoking one removes the recipient's view only.
 	create(
 		recipientUserId: string,
 		ownerUserId: string,

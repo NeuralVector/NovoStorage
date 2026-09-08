@@ -1,3 +1,5 @@
+// This service is the only place controllers need to know about Clerk.
+// Keeping Clerk here makes the rest of the application easier to replace or test.
 import { clerkClient } from '@clerk/fastify';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import type { FastifyReply, FastifyRequest } from 'fastify';
@@ -7,11 +9,13 @@ import config from '#config';
 export const AUTH_OPERATIONS = Symbol('AUTH_OPERATIONS');
 
 export interface AuthenticatedUser {
+	// Clerk's stable user ID identifies the owner of database and S3 records.
 	userId: string;
 	sessionId: string | null;
 }
 
 export interface AuthOperations {
+	// Controllers use this small contract instead of depending directly on Clerk APIs.
 	getCurrentUser(request: FastifyRequest): Promise<AuthenticatedUser | null>;
 	requireUser(request: FastifyRequest): Promise<AuthenticatedUser>;
 	redirectToSignIn(reply: FastifyReply, redirectUrl: string): FastifyReply;
@@ -20,10 +24,12 @@ export interface AuthOperations {
 
 @Injectable()
 export class ClerkAuthOperations implements AuthOperations {
+	// The Account Portal URL is loaded once when the service is created.
 	private readonly accountPortalUrl = config.get('clerk.accountPortalUrl');
 	private readonly publishableKey: string;
 
 	constructor() {
+		// The publishable key is needed by Clerk's server-side request authentication.
 		const publishableKey = process.env['CLERK_PUBLISHABLE_KEY'];
 		if (!publishableKey) {
 			throw new Error('CLERK_PUBLISHABLE_KEY is required');
@@ -32,6 +38,8 @@ export class ClerkAuthOperations implements AuthOperations {
 	}
 
 	async getCurrentUser(request: FastifyRequest): Promise<AuthenticatedUser | null> {
+		// Build a Web Request equivalent because Clerk's authentication helper consumes standard headers.
+		// Convert Fastify's incoming headers into the standard Headers API expected by Clerk.
 		const headers = new Headers();
 		for (const [name, value] of Object.entries(request.headers)) {
 			if (typeof value === 'string') headers.set(name, value);
@@ -39,6 +47,7 @@ export class ClerkAuthOperations implements AuthOperations {
 		}
 
 		const url = new URL(request.url, `${request.protocol}://${request.hostname}`);
+		// Clerk examines the request cookies/tokens and returns its authentication state.
 		const requestState = await clerkClient.authenticateRequest(
 			new Request(url, {
 				method: request.method,
@@ -50,11 +59,13 @@ export class ClerkAuthOperations implements AuthOperations {
 			}
 		);
 
+		// Unauthenticated requests are represented as null rather than throwing.
 		if (requestState.status !== 'signed-in') {
 			return null;
 		}
 
 		const auth = requestState.toAuth();
+		// Return only stable identifiers needed by application data ownership and auditing.
 
 		return {
 			userId: auth.userId,
@@ -63,6 +74,7 @@ export class ClerkAuthOperations implements AuthOperations {
 	}
 
 	async requireUser(request: FastifyRequest): Promise<AuthenticatedUser> {
+		// Use this helper in protected routes so every route handles auth consistently.
 		const user = await this.getCurrentUser(request);
 
 		if (!user) {
@@ -85,6 +97,8 @@ export class ClerkAuthOperations implements AuthOperations {
 		path: string,
 		redirectUrl: string
 	): FastifyReply {
+		// Sign-in and sign-up share URL construction; only the account-portal path differs.
+		// URLSearchParams safely encodes the destination inside Clerk's URL.
 		const url = new URL(path, this.accountPortalUrl);
 		url.searchParams.set('redirect_url', redirectUrl);
 

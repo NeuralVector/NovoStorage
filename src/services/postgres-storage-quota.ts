@@ -1,3 +1,4 @@
+// PostgreSQL stores quota counters while ObjectStorage stores the actual bytes.
 import { Inject, Injectable } from '@nestjs/common';
 import type { OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { Pool, type PoolClient } from 'pg';
@@ -13,6 +14,7 @@ import {
 export const POSTGRES_POOL = Symbol('POSTGRES_POOL');
 
 export const postgresPoolProvider = {
+	// A pool reuses database connections across requests and is shared by all PostgreSQL-backed stores.
 	provide: POSTGRES_POOL,
 	useFactory: (): Pool =>
 		new Pool({
@@ -28,6 +30,7 @@ export class PostgresStorageQuota implements StorageQuotaStore, OnModuleInit, On
 	) {}
 
 	async onModuleInit(): Promise<void> {
+		// Create the quota table when the service starts.
 		await this.pool.query(`
 			CREATE TABLE IF NOT EXISTS storage_usage (
 				user_id TEXT PRIMARY KEY,
@@ -43,15 +46,18 @@ export class PostgresStorageQuota implements StorageQuotaStore, OnModuleInit, On
 	}
 
 	async onModuleDestroy(): Promise<void> {
+		// Close idle and active database connections during graceful application shutdown.
 		await this.pool.end();
 	}
 
 	async getUsage(userId: string): Promise<StorageUsage> {
+		// The first lookup reconciles the counter with existing S3 objects.
 		const row = await this.withInitializedUser(userId, async (_client, user) => user);
 		return this.toUsage(row.used_bytes);
 	}
 
 	async reserve(userId: string, bytes: number): Promise<StorageUsage> {
+		// Reserve space before uploading so an upload cannot exceed the quota.
 		this.validateBytes(bytes);
 		const row = await this.withInitializedUser(userId, async (client) => {
 			const result = await client.query<{ used_bytes: string }>(
@@ -71,6 +77,7 @@ export class PostgresStorageQuota implements StorageQuotaStore, OnModuleInit, On
 	}
 
 	async release(userId: string, bytes: number): Promise<StorageUsage> {
+		// Clamp at zero so retries or recovery after a partial failure cannot create negative usage.
 		this.validateBytes(bytes);
 		const result = await this.pool.query<{ used_bytes: string }>(
 			`UPDATE storage_usage
@@ -85,6 +92,7 @@ export class PostgresStorageQuota implements StorageQuotaStore, OnModuleInit, On
 	}
 
 	private async ensureUser(userId: string): Promise<{ used_bytes: string }> {
+		// Create a zeroed row for users who release before any successful reservation exists.
 		const result = await this.pool.query<{ used_bytes: string }>(
 			`INSERT INTO storage_usage (user_id, initialized)
 			 VALUES ($1, TRUE)
@@ -102,6 +110,8 @@ export class PostgresStorageQuota implements StorageQuotaStore, OnModuleInit, On
 			user: { used_bytes: string; initialized: boolean }
 		) => Promise<T>
 	): Promise<T> {
+		// Lock this user's row so simultaneous uploads update quota safely. The transaction also keeps
+		// first-use reconciliation and the subsequent reservation atomic.
 		const client = await this.pool.connect();
 		try {
 			await client.query('BEGIN');
@@ -124,6 +134,7 @@ export class PostgresStorageQuota implements StorageQuotaStore, OnModuleInit, On
 			const user = result.rows[0]!;
 
 			if (!user.initialized) {
+				// Reconcile legacy/external objects once before trusting the counter.
 				const objects = await this.storage.list(userId);
 				const usedBytes = objects.reduce(
 					(total, object) => total + object.size,
@@ -151,6 +162,7 @@ export class PostgresStorageQuota implements StorageQuotaStore, OnModuleInit, On
 	}
 
 	private toUsage(usedBytes: string): StorageUsage {
+		// PostgreSQL BIGINT values arrive as strings in node-postgres to avoid precision loss.
 		return {
 			usedBytes: Number(usedBytes),
 			quotaBytes: config.get('storage.quotaBytes')
@@ -158,6 +170,7 @@ export class PostgresStorageQuota implements StorageQuotaStore, OnModuleInit, On
 	}
 
 	private validateBytes(bytes: number): void {
+		// Reject values that could break accounting or exceed JavaScript's exact integer range.
 		if (!Number.isSafeInteger(bytes) || bytes < 0) {
 			throw new Error('Storage byte count must be a non-negative safe integer.');
 		}

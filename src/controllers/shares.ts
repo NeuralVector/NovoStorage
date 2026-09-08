@@ -1,3 +1,4 @@
+// These routes create links, expose share metadata and accept shared files.
 import {
 	BadRequestException,
 	Controller,
@@ -22,10 +23,12 @@ import { PAGE_RENDERER, type PageRenderer } from '#utils/page-renderer.ts';
 import { validateFilePath } from '#utils/storage-path.ts';
 
 interface CreateShareBody {
+	// Only a path is accepted; the authenticated owner is derived from the request.
 	path?: string;
 }
 
 function shareUrl(token: string): string {
+	// Build an absolute public URL from deployment configuration rather than assuming localhost.
 	const url = new URL(config.get('website.url'));
 	if (!url.port && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) {
 		url.port = String(config.get('server.port'));
@@ -37,12 +40,14 @@ function shareUrl(token: string): string {
 }
 
 function shareResponse(share: FileShare): FileShare & { url: string } {
+	// Keep the persisted share shape and add the convenient URL returned to the frontend.
 	return { ...share, url: shareUrl(share.token) };
 }
 
 @Controller('api/shares')
 export class ShareController {
 	constructor(
+		// Sharing needs auth, metadata stores, object existence checks, and virtual references.
 		@Inject(AUTH_OPERATIONS) private readonly auth: AuthOperations,
 		@Inject(FILE_SHARING) private readonly shares: FileShareStore,
 		@Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
@@ -52,6 +57,7 @@ export class ShareController {
 
 	@Get()
 	async listShares(@Req() request: FastifyRequest) {
+		// Only the owner can enumerate their active share tokens.
 		const user = await this.auth.requireUser(request);
 		const shares = await this.shares.list(user.userId);
 		return shares.map((share) => shareResponse(share));
@@ -59,10 +65,12 @@ export class ShareController {
 
 	@Post()
 	async createShare(@Body() body: CreateShareBody, @Req() request: FastifyRequest) {
+		// Only the owner of an existing file can create a share link.
 		const user = await this.auth.requireUser(request);
 		const path = validateFilePath(body?.path);
 		const key = `${user.userId}/${path}`;
 		const objects = await this.storage.list(user.userId);
+		// Do not create a link for a missing object or a directory marker.
 		if (!objects.some((object) => object.key === key)) {
 			throw new NotFoundException('File not found.');
 		}
@@ -72,6 +80,7 @@ export class ShareController {
 
 	@Get(':token')
 	async getPublicShare(@Param('token') token: string) {
+		// Expose only metadata needed by the public page; the token itself grants download access.
 		const share = await this.shares.get(token);
 		if (!share) throw new NotFoundException('Share link not found or revoked.');
 		return {
@@ -83,12 +92,14 @@ export class ShareController {
 
 	@Post(':token/accept')
 	async acceptShare(@Param('token') token: string, @Req() request: FastifyRequest) {
+		// Accepting creates a database reference; it does not copy file bytes.
 		const user = await this.auth.requireUser(request);
 		const share = await this.shares.get(token);
 		if (!share) throw new NotFoundException('Share link not found or revoked.');
 
 		const objectKey = `${share.userId}/${share.path}`;
 		const objects = await this.storage.list(share.userId);
+		// Validate the source still exists before creating a recipient reference.
 		if (!objects.some((object) => object.key === objectKey)) {
 			throw new NotFoundException('Shared file no longer exists.');
 		}
@@ -106,6 +117,7 @@ export class ShareController {
 		@Param('token') token: string,
 		@Req() request: FastifyRequest
 	): Promise<void> {
+		// Ownership is checked before revoking both the public token and references it created.
 		if (!token) throw new BadRequestException('A share token is required.');
 		const user = await this.auth.requireUser(request);
 		const share = await this.shares.get(token);
@@ -123,6 +135,7 @@ export class ShareController {
 @Controller('shared')
 export class PublicShareController {
 	constructor(
+		// Public routes need only share lookup, object lookup, and HTML rendering.
 		@Inject(FILE_SHARING) private readonly shares: FileShareStore,
 		@Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
 		@Inject(PAGE_RENDERER) private readonly renderer: PageRenderer
@@ -133,6 +146,7 @@ export class PublicShareController {
 		@Param('token') token: string,
 		@Res() reply: FastifyReply
 	): Promise<void> {
+		// The HTML page is public, but the actual download still validates the share token.
 		const share = await this.shares.get(token);
 		if (!share) throw new NotFoundException('Share link not found or revoked.');
 		await this.renderer.render(reply, 'shared');
@@ -153,6 +167,7 @@ export class PublicShareController {
 		}
 
 		const object = await this.storage.download(key);
+		// Prefer the stored content type while retaining a safe binary fallback.
 		const fileName = share.path.split('/').pop() ?? 'download';
 		reply.header('Content-Type', object.contentType ?? 'application/octet-stream');
 		reply.header(

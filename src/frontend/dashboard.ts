@@ -1,6 +1,9 @@
+// The dashboard is a browser application that renders the file table and handles UI events.
 import { getCurrentUserName, isSignedIn, signOut } from './auth.ts';
 
 interface StorageItem {
+	// This is the normalized shape used by every file-table row, regardless of
+	// whether the row came from the user's own S3 objects or a shared reference.
 	name: string;
 	path: string;
 	type: 'file' | 'directory';
@@ -11,17 +14,20 @@ interface StorageItem {
 }
 
 interface StorageUsage {
+	// The quota response contains raw byte counts; formatting happens only at the UI boundary.
 	usedBytes: number;
 	quotaBytes: number;
 	remainingBytes: number;
 }
 
 interface SelectedUpload {
+	// A File object contains bytes, while relativePath preserves a dropped folder's structure.
 	file: File;
 	relativePath: string;
 }
 
 interface DroppedEntry {
+	// This describes the subset of the non-standard WebKit drag-and-drop entry API we use.
 	isFile: boolean;
 	isDirectory: boolean;
 	name: string;
@@ -30,12 +36,14 @@ interface DroppedEntry {
 }
 
 interface DroppedDirectoryReader {
+	// Directory readers return batches, so callers must continue until an empty batch is received.
 	readEntries: (
 		onEntries: (entries: DroppedEntry[]) => void,
 		onError?: (error: unknown) => void
 	) => void;
 }
 
+// Cache the DOM nodes once so rendering functions do not repeatedly search the document.
 const fileRows = document.querySelector('#file-rows');
 const itemCount = document.querySelector('#item-count');
 const storageUsageText = document.querySelector<HTMLElement>('#storage-usage');
@@ -95,6 +103,8 @@ const selectedContents = document.querySelector<HTMLButtonElement>('[data-action
 const selectedShare = document.querySelector<HTMLButtonElement>('[data-action="share"]');
 const selectedDelete = document.querySelector<HTMLButtonElement>('[data-action="delete"]');
 
+// These variables are the dashboard's small in-memory state store. The server remains the
+// source of truth; this state only controls the current view and avoids unnecessary requests.
 let storageItems: StorageItem[] = [];
 let selectedItem: StorageItem | null = null;
 let selectedPaths = new Set<string>();
@@ -107,9 +117,11 @@ let selectedUploads: SelectedUpload[] = [];
 let isUploading = false;
 
 function applyTheme(theme: 'light' | 'dark'): void {
+	// Apply the data attribute consumed by the CSS theme selectors and persist the choice.
 	document.documentElement.dataset['theme'] = theme;
 	localStorage.setItem('novostorage-theme', theme);
 	if (themeToggle) {
+		// Update both icon visibility and accessible button text to describe the action available next.
 		const nextTheme = theme === 'dark' ? 'light' : 'dark';
 		moonIcon?.toggleAttribute('hidden', theme === 'dark');
 		sunIcon?.toggleAttribute('hidden', theme !== 'dark');
@@ -120,9 +132,12 @@ function applyTheme(theme: 'light' | 'dark'): void {
 }
 
 const savedTheme = localStorage.getItem('novostorage-theme');
+// Unknown or missing values intentionally fall back to the light theme.
 applyTheme(savedTheme === 'dark' ? 'dark' : 'light');
 
 function renderBreadcrumb(): void {
+	// Rebuild the breadcrumb buttons from the current folder path. Rebuilding is simpler and safer
+	// than trying to update individual crumbs when the user changes folders or switches views.
 	if (!breadcrumb) return;
 	breadcrumb.replaceChildren();
 	const root = document.createElement('button');
@@ -145,6 +160,7 @@ function renderBreadcrumb(): void {
 	const parts = currentPath.split('/').filter(Boolean);
 	let path = '';
 	for (const part of parts) {
+		// Each iteration turns the path prefix into a button, e.g. a/b becomes a then a/b.
 		path = path ? `${path}/${part}` : part;
 		const separator = document.createElement('b');
 		separator.textContent = '›';
@@ -159,6 +175,8 @@ function renderBreadcrumb(): void {
 }
 
 function formatFileSize(bytes: number): string {
+	// Convert raw byte counts into a readable unit such as MB or GB. Logarithms select the
+	// largest sensible unit, while the cap prevents unexpectedly large values from indexing past TB.
 	if (bytes === 0) return '0 B';
 	const units = ['B', 'KB', 'MB', 'GB', 'TB'];
 	const unitIndex = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
@@ -166,6 +184,7 @@ function formatFileSize(bytes: number): string {
 }
 
 function formatLastModified(value: string | null): string {
+	// Dates come from JSON as strings, so parse them locally and use the browser's locale for display.
 	if (!value) return '—';
 	const date = new Date(value);
 	if (Number.isNaN(date.getTime())) return '—';
@@ -176,6 +195,7 @@ function formatLastModified(value: string | null): string {
 }
 
 function showToast(message: string): void {
+	// Toasts are transient status messages; replacing the text also resets the visible message timer.
 	if (!toast) return;
 	toast.textContent = message;
 	toast.hidden = false;
@@ -185,6 +205,7 @@ function showToast(message: string): void {
 }
 
 function renderStorageUsage(usage: StorageUsage): void {
+	// Keep the percentage bounded because malformed or already-full responses should not widen the bar.
 	const percentage = usage.quotaBytes
 		? Math.min(100, (usage.usedBytes / usage.quotaBytes) * 100)
 		: 100;
@@ -198,6 +219,7 @@ function renderStorageUsage(usage: StorageUsage): void {
 }
 
 async function loadStorageUsage(): Promise<StorageUsage | null> {
+	// Quota is loaded separately so the usage bar can update independently of the file-table request.
 	const response = await fetch('/api/storage/usage');
 	if (response.status === 401) {
 		window.location.assign('/login');
@@ -210,6 +232,8 @@ async function loadStorageUsage(): Promise<StorageUsage | null> {
 }
 
 function download(item: StorageItem): void {
+	// Downloads use a temporary browser link so authentication, streaming, and save behavior remain
+	// handled by the server/browser instead of loading the entire object into JavaScript memory.
 	const query = new URLSearchParams({ path: item.path });
 	if (item.referenceId) query.set('referenceId', item.referenceId);
 	const link = document.createElement('a');
@@ -222,6 +246,8 @@ function download(item: StorageItem): void {
 }
 
 async function viewContents(item: StorageItem): Promise<void> {
+	// Read text progressively from the response instead of buffering the whole file. The request
+	// counter prevents a slower, older request from overwriting a newer modal selection.
 	if (!contentsModal || !contentsTitle || !contentsStatus || !contentsText || !modalBackdrop)
 		return;
 	const request = ++contentsRequest;
@@ -242,6 +268,7 @@ async function viewContents(item: StorageItem): Promise<void> {
 		if (!response.ok) throw new Error('Unable to read file contents.');
 
 		const contentType = response.headers.get('content-type');
+		// Respect a server-provided charset when possible, but retain UTF-8 for unknown charsets.
 		const charset = contentType?.match(/charset=([^;]+)/i)?.[1]?.trim();
 		let decoder: TextDecoder;
 		try {
@@ -254,6 +281,7 @@ async function viewContents(item: StorageItem): Promise<void> {
 			contentsText.textContent = await response.text();
 		} else {
 			while (true) {
+				// Appending chunks as they arrive makes large text files usable before download completes.
 				const result = await reader.read();
 				if (request !== contentsRequest) {
 					await reader.cancel();
@@ -283,6 +311,8 @@ async function viewContents(item: StorageItem): Promise<void> {
 }
 
 async function share(item: StorageItem): Promise<void> {
+	// Ask the API to create a share link, then copy it to the clipboard. The prompt fallback supports
+	// browsers or permission settings where navigator.clipboard is unavailable.
 	const response = await fetch('/api/shares', {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
@@ -305,6 +335,8 @@ async function share(item: StorageItem): Promise<void> {
 }
 
 function visibleItems(): StorageItem[] {
+	// Only direct children of the current folder are shown in the table; descendants remain available
+	// in memory for folder navigation and recursive operations.
 	const search = filter?.value.trim().toLowerCase() ?? '';
 	const prefix = currentPath ? `${currentPath}/` : '';
 	return storageItems.filter((item) => {
@@ -319,10 +351,13 @@ function visibleItems(): StorageItem[] {
 }
 
 function selectedStorageItems(): StorageItem[] {
+	// Selection is stored as paths so a rerender can recreate checkboxes without losing it.
 	return storageItems.filter((item) => selectedPaths.has(item.path));
 }
 
 function updateSelectionUi(items = visibleItems()): void {
+	// The header checkbox represents only the currently visible rows, while the Set may include rows
+	// from another folder that the user selected earlier.
 	const selectedCount = selectedStorageItems().length;
 	if (selectionActions) selectionActions.hidden = selectedCount === 0;
 	if (selectionCount) {
@@ -339,11 +374,13 @@ function updateSelectionUi(items = visibleItems()): void {
 }
 
 function clearSelection(): void {
+	// Navigation and view changes clear selection because paths have different meaning in the new view.
 	selectedPaths.clear();
 	updateSelectionUi();
 }
 
 function downloadSelected(): void {
+	// Expand selected directories into their descendant files and deduplicate files shared by selections.
 	const files = new Map<string, StorageItem>();
 	for (const item of selectedStorageItems()) {
 		if (item.type === 'file') files.set(item.path, item);
@@ -371,6 +408,7 @@ function downloadSelected(): void {
 }
 
 async function deleteItem(item: StorageItem): Promise<void> {
+	// The API accepts one path and deletes either that file or the complete directory subtree.
 	const query = new URLSearchParams({ path: item.path });
 	if (item.referenceId) query.set('referenceId', item.referenceId);
 	const response = await fetch(`/api/files?${query.toString()}`, {
@@ -402,6 +440,7 @@ async function deleteItem(item: StorageItem): Promise<void> {
 }
 
 async function deleteSelected(): Promise<void> {
+	// Batch deletion intentionally sends independent requests so one selected path maps to one API action.
 	const items = selectedStorageItems();
 	if (items.length === 0) return;
 	const label = items.length === 1 ? 'this item' : `these ${items.length} items`;
@@ -434,6 +473,7 @@ async function deleteSelected(): Promise<void> {
 }
 
 function imageMimeType(name: string): string | null {
+	// Preview support is deliberately allow-listed by extension rather than trusting arbitrary content.
 	const extension = name.split('.').pop()?.toLowerCase();
 	const mimeTypes: Record<string, string> = {
 		avif: 'image/avif',
@@ -449,6 +489,7 @@ function imageMimeType(name: string): string | null {
 }
 
 function videoMimeType(name: string): string | null {
+	// This list mirrors the formats the browser video element can request from the streaming endpoint.
 	const extension = name.split('.').pop()?.toLowerCase();
 	const mimeTypes: Record<string, string> = {
 		m4v: 'video/mp4',
@@ -461,12 +502,14 @@ function videoMimeType(name: string): string | null {
 }
 
 function videoStreamUrl(item: StorageItem): string {
+	// Include the reference ID when needed so a shared object is authorized as the recipient's item.
 	const query = new URLSearchParams({ path: item.path });
 	if (item.referenceId) query.set('referenceId', item.referenceId);
 	return `/api/files/stream?${query.toString()}`;
 }
 
 function resetPreview(): void {
+	// Invalidate pending preview work, release blob memory, and hide every preview presentation mode.
 	previewRequest += 1;
 	if (previewUrl) URL.revokeObjectURL(previewUrl);
 	previewUrl = null;
@@ -490,6 +533,8 @@ function resetPreview(): void {
 }
 
 async function loadImagePreview(item: StorageItem): Promise<void> {
+	// Images are fetched as blobs so they can be displayed in the details panel without exposing a
+	// permanent object URL; videos use the range-capable streaming endpoint directly.
 	resetPreview();
 	const mimeType = imageMimeType(item.name);
 	const videoType = videoMimeType(item.name);
@@ -503,6 +548,7 @@ async function loadImagePreview(item: StorageItem): Promise<void> {
 	}
 
 	if (videoType && previewVideo) {
+		// Let the video element fetch metadata/data itself so seeking and range requests keep working.
 		previewVideo.src = videoStreamUrl(item);
 		previewVideo.hidden = false;
 		previewVideo.onloadeddata = () => {
@@ -523,6 +569,7 @@ async function loadImagePreview(item: StorageItem): Promise<void> {
 	if (!mimeType || !previewImage) return;
 
 	try {
+		// Fetch the image through the authenticated API, then create a short-lived local object URL.
 		const query = new URLSearchParams({ path: item.path });
 		if (item.referenceId) query.set('referenceId', item.referenceId);
 		const response = await fetch(`/api/files/download?${query.toString()}`);
@@ -549,6 +596,7 @@ async function loadImagePreview(item: StorageItem): Promise<void> {
 }
 
 function selectItem(item: StorageItem): void {
+	// Selecting a row opens the details panel, fills its metadata, and starts a possible preview.
 	selectedItem = item;
 	if (detailsPanel) detailsPanel.hidden = false;
 	appShell?.classList.add('has-details');
@@ -573,6 +621,8 @@ function selectItem(item: StorageItem): void {
 }
 
 function navigateTo(path: string): void {
+	// Folder navigation only changes browser state; the full list is already loaded, so no network
+	// request is necessary until a refresh or mutation occurs.
 	currentPath = path;
 	selectedItem = null;
 	clearSelection();
@@ -584,6 +634,7 @@ function navigateTo(path: string): void {
 }
 
 function setView(view: 'storage' | 'shared'): void {
+	// Switching views resets folder-local UI because shared references and owned paths are separate sets.
 	currentView = view;
 	for (const button of document.querySelectorAll<HTMLButtonElement>('[data-view]')) {
 		button.classList.toggle('active', button.dataset['view'] === view);
@@ -610,6 +661,7 @@ function setView(view: 'storage' | 'shared'): void {
 }
 
 function emptyState(): HTMLElement {
+	// Build empty content in code so the message and action match the active storage/shared view.
 	const empty = document.createElement('div');
 	empty.className = 'empty-state';
 	if (currentView === 'shared') {
@@ -631,6 +683,7 @@ function emptyState(): HTMLElement {
 }
 
 function loadingState(): HTMLElement {
+	// Return a fresh node because renderItems replaces the table contents during every load.
 	const loading = document.createElement('div');
 	loading.className = 'loading-state';
 	loading.innerHTML =
@@ -639,11 +692,13 @@ function loadingState(): HTMLElement {
 }
 
 function setLoading(): void {
+	// Show immediate feedback before fetch resolves, avoiding a stale table during refresh.
 	if (fileRows) fileRows.replaceChildren(loadingState());
 	if (itemCount) itemCount.textContent = 'Loading...';
 }
 
 function setLoadError(): void {
+	// Render an actionable but deliberately generic error state; detailed errors are shown as toasts.
 	if (!fileRows) return;
 	const error = document.createElement('div');
 	error.className = 'empty-state';
@@ -653,6 +708,7 @@ function setLoadError(): void {
 }
 
 function renderItems(): void {
+	// Render the visible slice from state. Event handlers are attached here because rows are recreated.
 	if (!fileRows) return;
 	const items = visibleItems();
 	if (itemCount) itemCount.textContent = `${items.length} items`;
@@ -664,6 +720,7 @@ function renderItems(): void {
 	}
 
 	for (const item of items) {
+		// Each row is assembled with DOM APIs so file names are treated as text, not executable HTML.
 		const row = document.createElement('div');
 		row.className = 'file-row';
 		row.dataset['path'] = item.path;
@@ -674,6 +731,7 @@ function renderItems(): void {
 		checkbox.checked = selectedPaths.has(item.path);
 		checkbox.setAttribute('aria-label', `Select ${item.name}`);
 		checkbox.addEventListener('change', () => {
+			// Mutate only the path Set, then rerender so checkbox and header state stay synchronized.
 			if (checkbox.checked) selectedPaths.add(item.path);
 			else selectedPaths.delete(item.path);
 			renderItems();
@@ -685,6 +743,7 @@ function renderItems(): void {
 		name.type = 'button';
 		name.textContent = `${item.type === 'directory' ? '📁' : '📄'} ${item.name}`;
 		name.addEventListener('click', () => {
+			// Directories navigate; files select, because only files can be previewed/downloaded.
 			if (item.type === 'directory') navigateTo(item.path);
 			else selectItem(item);
 		});
@@ -711,6 +770,7 @@ function renderItems(): void {
 				? '<svg class="action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11m0 0 4-4m-4 4-4-4M5 21h14" /></svg>'
 				: '<svg class="action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16m-11 0V4h6v3m-9 0 1 14h10l1-14m-7 4v6m4-6v6" /></svg>';
 		action.addEventListener('click', () => {
+			// The row's secondary action is download for files and recursive delete for folders.
 			if (item.type === 'file') {
 				download(item);
 				return;
@@ -733,6 +793,8 @@ function renderItems(): void {
 }
 
 async function loadStorage(): Promise<void> {
+	// Wait for the API response before replacing the loading state with rows, while retaining only
+	// selections that still exist after a refresh.
 	setLoading();
 	try {
 		const response = await fetch('/api/files');
@@ -755,12 +817,14 @@ async function loadStorage(): Promise<void> {
 }
 
 function openModal(modal: HTMLElement | null): void {
+	// All modal types share one backdrop, so opening one always makes that backdrop visible too.
 	if (!modalBackdrop || !modal) return;
 	modalBackdrop.hidden = false;
 	modal.hidden = false;
 }
 
 function renderSelectedFiles(files: SelectedUpload[]): void {
+	// Rebuild the upload queue display from state; this also handles the empty queue consistently.
 	if (!pendingFiles) return;
 	pendingFiles.replaceChildren();
 
@@ -795,6 +859,7 @@ function renderSelectedFiles(files: SelectedUpload[]): void {
 }
 
 function filesToUploads(files: FileList | null): SelectedUpload[] {
+	// Convert the browser's array-like FileList into the richer upload model used by the queue.
 	return [...(files ?? [])].map((file) => ({
 		file,
 		relativePath:
@@ -803,11 +868,13 @@ function filesToUploads(files: FileList | null): SelectedUpload[] {
 }
 
 function updateSelectedFiles(files: SelectedUpload[], append = false): void {
+	// File selection replaces the queue; folder selection and drag/drop can opt into appending instead.
 	selectedUploads = append ? [...selectedUploads, ...files] : files;
 	renderSelectedFiles(selectedUploads);
 }
 
 function readDroppedFile(entry: DroppedEntry, directoryPath: string): Promise<SelectedUpload> {
+	// Wrap the callback-only entry API in a Promise so recursive directory traversal can use await.
 	return new Promise((resolve, reject) => {
 		if (!entry.file) {
 			reject(new Error(`Unable to read ${entry.name}.`));
@@ -831,6 +898,7 @@ async function readDroppedDirectory(
 	entry: DroppedEntry,
 	directoryPath: string
 ): Promise<SelectedUpload[]> {
+	// Read every batch from the directory reader, recursively preserving each child's relative path.
 	const reader = entry.createReader?.();
 	if (!reader) return [];
 
@@ -861,6 +929,7 @@ async function readDroppedDirectory(
 }
 
 async function readDroppedItems(dataTransfer: DataTransfer): Promise<SelectedUpload[]> {
+	// Prefer entries because ordinary FileList data loses folder hierarchy during a drop.
 	const items = [...dataTransfer.items] as unknown as Array<{
 		webkitGetAsEntry?: () => DroppedEntry | null;
 	}>;
@@ -884,6 +953,7 @@ async function readDroppedItems(dataTransfer: DataTransfer): Promise<SelectedUpl
 }
 
 function clearSelectedFiles(): void {
+	// Reset both native inputs and our queue because browsers do not reliably fire change for the same file twice.
 	if (fileInput) fileInput.value = '';
 	if (folderInput) folderInput.value = '';
 	selectedUploads = [];
@@ -891,6 +961,7 @@ function clearSelectedFiles(): void {
 }
 
 function setUploading(uploading: boolean): void {
+	// Lock controls while requests are in flight so the same queue cannot be submitted twice.
 	isUploading = uploading;
 	if (uploadStatus) uploadStatus.hidden = !uploading;
 	if (uploadButton) {
@@ -909,6 +980,7 @@ function setUploading(uploading: boolean): void {
 renderSelectedFiles(selectedUploads);
 
 function closeModal(): void {
+	// Close every modal and cancel UI work associated with it; an active upload is the one exception.
 	if (!modalBackdrop) return;
 	const uploadWasOpen = Boolean(uploadModal && !uploadModal.hidden);
 	if (uploadWasOpen && isUploading) return;
@@ -933,6 +1005,7 @@ function closeModal(): void {
 }
 
 function openImagePreview(): void {
+	// Copy the small preview into the full-screen modal without refetching the image.
 	if (!previewImage?.src || !previewModal || !previewModalImage || !modalBackdrop) return;
 	previewModalImage.src = previewImage.src;
 	previewModalImage.alt = previewImage.alt;
@@ -946,6 +1019,7 @@ function openImagePreview(): void {
 }
 
 function openVideoPreview(): void {
+	// Reuse the authenticated stream URL in a larger video element and attempt autoplay when permitted.
 	if (!previewVideo?.src || !previewModal || !previewModalVideo || !modalBackdrop) return;
 	if (previewModalImage) {
 		previewModalImage.hidden = true;
@@ -960,6 +1034,8 @@ function openVideoPreview(): void {
 }
 
 async function uploadFiles(): Promise<void> {
+	// Upload each selected file sequentially so progress text remains understandable and quota checks
+	// can account for the complete queue before any bytes are sent.
 	if (isUploading) return;
 	if (selectedUploads.length === 0) {
 		showToast('Choose at least one file.');
@@ -982,6 +1058,7 @@ async function uploadFiles(): Promise<void> {
 		}
 
 		for (const [index, selected] of selectedUploads.entries()) {
+			// Normalize browser-specific separators and combine the dropped path with the current folder.
 			const file = selected.file;
 			const relativeParts = selected.relativePath
 				.replaceAll('\\', '/')
@@ -995,6 +1072,7 @@ async function uploadFiles(): Promise<void> {
 				uploadStatusText.textContent = `Uploading ${index + 1} of ${selectedUploads.length}…`;
 			}
 			const formData = new FormData();
+			// Multipart handles the file stream; the explicit size header lets the server reserve quota first.
 			formData.append('file', file, file.name);
 			const query = directoryPath
 				? `?path=${encodeURIComponent(directoryPath)}`
@@ -1033,6 +1111,7 @@ async function uploadFiles(): Promise<void> {
 }
 
 async function createDirectory(): Promise<void> {
+	// Directories are created through the API as S3 directory-marker objects, since S3 has no native folders.
 	const name = folderName?.value.trim();
 	if (!name) {
 		showToast('Enter a folder name.');
@@ -1057,12 +1136,14 @@ async function createDirectory(): Promise<void> {
 }
 
 document.addEventListener('click', (event) => {
+	// One delegated listener handles buttons created both by HTML and TypeScript, including future empty-state buttons.
 	const target = event.target as HTMLElement;
 	const action = target.closest<HTMLElement>('[data-action]')?.dataset['action'];
 	if (!action) return;
 
 	switch (action) {
 		case 'toggle-theme':
+			// Toggle from the current document state rather than from a stale local variable.
 			applyTheme(
 				document.documentElement.dataset['theme'] === 'dark'
 					? 'light'
@@ -1073,6 +1154,7 @@ document.addEventListener('click', (event) => {
 			void signOut();
 			break;
 		case 'create-menu': {
+			// The create menu is intentionally independent from modal state.
 			const menu = document.querySelector<HTMLElement>('.create-menu');
 			if (menu) menu.hidden = !menu.hidden;
 			break;
@@ -1123,6 +1205,7 @@ document.addEventListener('click', (event) => {
 			downloadSelected();
 			break;
 		case 'delete':
+			// Confirm destructive actions at the last possible moment, after the selected item is known.
 			if (selectedItem) {
 				const item = selectedItem;
 				const label =
@@ -1150,6 +1233,7 @@ document.addEventListener('click', (event) => {
 			);
 			break;
 		case 'refresh':
+			// Refresh both independent server-backed summaries together.
 			void Promise.all([loadStorage(), loadStorageUsage()]);
 			break;
 		case 'close-details':
@@ -1165,8 +1249,10 @@ document.addEventListener('click', (event) => {
 
 document;
 detailsResizer?.addEventListener('pointerdown', (event) => {
+	// Pointer events allow mouse, pen, and touch dragging to share the same resize implementation.
 	event.preventDefault();
 	const resize = (moveEvent: PointerEvent): void => {
+		// Clamp the panel so it remains usable without consuming the entire viewport.
 		const width = Math.min(520, Math.max(240, window.innerWidth - moveEvent.clientX));
 		appShell?.style.setProperty('--details-width', `${width}px`);
 	};
@@ -1180,6 +1266,7 @@ detailsResizer?.addEventListener('pointerdown', (event) => {
 
 filter?.addEventListener('input', renderItems);
 selectAll?.addEventListener('change', () => {
+	// Select or deselect only rows visible under the active folder, view, and filter.
 	for (const item of visibleItems()) {
 		if (selectAll.checked) selectedPaths.add(item.path);
 		else selectedPaths.delete(item.path);

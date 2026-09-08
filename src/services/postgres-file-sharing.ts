@@ -1,3 +1,4 @@
+// PostgreSQL implementation of the file-sharing abstraction.
 import { randomBytes } from 'node:crypto';
 
 import { Inject, Injectable } from '@nestjs/common';
@@ -12,6 +13,7 @@ export class PostgresFileShareStore implements FileShareStore, OnModuleInit {
 	constructor(@Inject(POSTGRES_POOL) private readonly pool: Pool) {}
 
 	async onModuleInit(): Promise<void> {
+		// Tables and indexes are created when the application starts.
 		await this.pool.query(`
 			CREATE TABLE IF NOT EXISTS file_shares (
 				token TEXT PRIMARY KEY,
@@ -29,7 +31,9 @@ export class PostgresFileShareStore implements FileShareStore, OnModuleInit {
 	}
 
 	async create(userId: string, path: string): Promise<FileShare> {
+		// A cryptographically random token makes the public link difficult to guess.
 		for (;;) {
+			// The loop is practically one iteration; it handles the vanishingly unlikely token collision.
 			const token = randomBytes(32).toString('base64url');
 			const result = await this.pool.query<{
 				token: string;
@@ -50,6 +54,7 @@ export class PostgresFileShareStore implements FileShareStore, OnModuleInit {
 	}
 
 	async get(token: string): Promise<FileShare | null> {
+		// Revoked shares are intentionally invisible to callers.
 		const result = await this.pool.query<{
 			token: string;
 			user_id: string;
@@ -66,6 +71,7 @@ export class PostgresFileShareStore implements FileShareStore, OnModuleInit {
 	}
 
 	async list(userId: string): Promise<FileShare[]> {
+		// Return newest active links first so the owner sees recently-created shares immediately.
 		const result = await this.pool.query<{
 			token: string;
 			user_id: string;
@@ -82,6 +88,7 @@ export class PostgresFileShareStore implements FileShareStore, OnModuleInit {
 	}
 
 	async revoke(userId: string, token: string): Promise<void> {
+		// Soft deletion keeps audit history while making the token unusable.
 		await this.pool.query(
 			`UPDATE file_shares
 			 SET revoked_at = NOW()
@@ -91,6 +98,7 @@ export class PostgresFileShareStore implements FileShareStore, OnModuleInit {
 	}
 
 	async revokeForPath(userId: string, path: string): Promise<void> {
+		// Escape LIKE metacharacters so a literal filename cannot revoke unrelated shares.
 		const escapedPath = path
 			.replaceAll('\\', '\\\\')
 			.replaceAll('%', '\\%')
