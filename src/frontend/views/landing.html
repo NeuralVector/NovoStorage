@@ -183,5 +183,19 @@
 				<p>© 2026 NovoStorage. All rights reserved.</p>
 			</div>
 		</footer>
+
+		<script>
+			// Hash links currently represent decorative landing-page navigation only.
+			for (const link of document.querySelectorAll('a[href^="#"]')) {
+				link.addEventListener('click', (event) => {
+					event.preventDefault();
+					const message =
+						link.getAttribute('href') === '#pricing'
+							? 'NovoStorage is free. Paid pricing plans are not implemented.'
+							: 'This link is for decorative purposes only and is not implemented in the project.';
+					alert(message);
+				});
+			}
+		</script>
 	</body>
 </html>
