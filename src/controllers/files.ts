@@ -178,6 +178,21 @@ export class FilesController {
 				?.get(reference.objectKey);
 			return object ? [{ reference, object }] : [];
 		});
+		const ownerNames = new Map<string, string>();
+		await Promise.all(
+			[
+				...new Set(
+					availableReferences.map(
+						({ reference }) => reference.ownerUserId
+					)
+				)
+			].map(async (ownerId) => {
+				ownerNames.set(
+					ownerId,
+					await this.auth.getUserDisplayName(ownerId)
+				);
+			})
+		);
 
 		if (availableReferences.length > 0) {
 			const usedNames = new Set(items.keys());
@@ -196,7 +211,9 @@ export class FilesController {
 					lastModified:
 						object.lastModified?.toISOString() ??
 						reference.createdAt.toISOString(),
-					owner: reference.ownerUserId,
+					owner:
+						ownerNames.get(reference.ownerUserId) ??
+						'Unknown user',
 					referenceId: reference.id
 				});
 			}

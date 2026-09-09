@@ -14,6 +14,7 @@ export interface AuthenticatedUser {
 export interface AuthOperations {
 	getCurrentUser(request: FastifyRequest): Promise<AuthenticatedUser | null>;
 	requireUser(request: FastifyRequest): Promise<AuthenticatedUser>;
+	getUserDisplayName(userId: string): Promise<string>;
 	redirectToSignIn(reply: FastifyReply, redirectUrl: string): FastifyReply;
 	redirectToSignUp(reply: FastifyReply, redirectUrl: string): FastifyReply;
 }
@@ -70,6 +71,23 @@ export class ClerkAuthOperations implements AuthOperations {
 		}
 
 		return user;
+	}
+
+	async getUserDisplayName(userId: string): Promise<string> {
+		// Shared-file metadata should show a human-readable owner without exposing Clerk IDs.
+		try {
+			const user = await clerkClient.users.getUser(userId);
+			return (
+				user.fullName ??
+				([user.firstName, user.lastName].filter(Boolean).join(' ') ||
+					user.username ||
+					user.primaryEmailAddress?.emailAddress ||
+					'Unknown user')
+			);
+		} catch {
+			// The reference may outlive a deleted Clerk account; keep the file visible with a neutral label.
+			return 'Unknown user';
+		}
 	}
 
 	redirectToSignIn(reply: FastifyReply, redirectUrl: string): FastifyReply {
